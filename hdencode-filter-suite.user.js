@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HDEncode Filter Suite
 // @namespace    https://hdencode.org/
-// @version      1.0
+// @version      1.1
 // @description  A Tampermonkey userscript that adds powerful filtering, searching and multi-page loading to HDEncode.org
 // @author       mikeymuis
 // @homepage     https://github.com/mikeymuis/hdencode-filter-suite
@@ -20,7 +20,7 @@
     // ─── Script constants ─────────────────────────────────────────────────────
 
     const SCRIPT_NAME    = 'HDEncode Filter Suite';
-    const SCRIPT_VERSION = '1.0';
+    const SCRIPT_VERSION = '1.1';
     const SCRIPT_ID      = 'hdencode-filter-suite';
 
     // ─── Helpers: item data extraction ───────────────────────────────────────
@@ -213,7 +213,190 @@
         applyFilters(container);
     }
 
-    // ─── UI layout ────────────────────────────────────────────────────────────
+    // ─── Quick links ──────────────────────────────────────────────────────────
+
+    const linkCache = new Map();
+
+    async function fetchLinks(url) {
+        if (linkCache.has(url)) return linkCache.get(url);
+
+        try {
+            // Step 1: GET the detail page to get the form and its tokens
+            const getRes = await fetch(url, { credentials: 'same-origin' });
+            if (!getRes.ok) return null;
+
+            const doc = new DOMParser().parseFromString(await getRes.text(), 'text/html');
+
+            // Step 2: Find the content protector form and collect all its fields
+            const form = doc.querySelector('form[id^="content-protector-access-form"]');
+            if (!form) return null;
+
+            const formData = new FormData();
+            for (const input of form.querySelectorAll('input')) {
+                if (input.name) formData.append(input.name, input.value);
+            }
+
+            // Step 3: POST the form to unlock the links
+            const action = new URL(form.getAttribute('action'), url).href;
+            const postRes = await fetch(action, {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData,
+            });
+            if (!postRes.ok) return null;
+
+            const unlockedDoc = new DOMParser().parseFromString(await postRes.text(), 'text/html');
+
+            // Step 4: Extract links from blockquotes inside content-protector div
+            const links = [];
+            for (const blockquote of unlockedDoc.querySelectorAll('.content-protector-access-form blockquote')) {
+                const img = blockquote.previousElementSibling?.querySelector('img');
+                const host = img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link';
+                for (const a of blockquote.querySelectorAll('a')) {
+                    links.push({ host, url: a.href });
+                }
+            }
+
+            linkCache.set(url, links);
+            return links;
+        } catch (e) {
+            console.error(`${SCRIPT_NAME}: failed to fetch links for`, url, e);
+            return null;
+        }
+    }
+
+    function injectLinkButton(item) {
+        if (item.querySelector('.fs-link-btn')) return;
+
+        const h5 = item.querySelector('h5');
+        if (!h5) return;
+
+        const detailUrl = h5.querySelector('a')?.href;
+        if (!detailUrl) return;
+
+        const btn = document.createElement('span');
+        btn.className = 'fs-link-btn';
+        btn.title = 'Show download links';
+        btn.innerHTML = '🔗 Links';
+        Object.assign(btn.style, {
+            cursor: 'pointer',
+            marginLeft: '8px',
+            fontSize: '11px',
+            color: '#00e5ff',
+            border: '1px solid rgba(0,229,255,0.35)',
+            borderRadius: '4px',
+            padding: '1px 7px',
+            background: 'transparent',
+            userSelect: 'none',
+            verticalAlign: 'middle',
+            whiteSpace: 'nowrap',
+            flexShrink: '0',
+        });
+
+        const panel = document.createElement('div');
+        panel.className = 'fs-link-panel';
+        Object.assign(panel.style, {
+            display: 'none',
+            marginTop: '6px',
+            padding: '8px 10px',
+            background: '#161b22',
+            border: '1px solid #21262d',
+            borderRadius: '6px',
+            fontSize: '12px',
+            lineHeight: '1.8',
+        });
+
+        let open = false;
+
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (open) {
+                panel.style.display = 'none';
+                btn.style.opacity = '0.6';
+                open = false;
+                return;
+            }
+
+            btn.innerHTML = '⏳';
+            btn.style.opacity = '1';
+
+            const links = await fetchLinks(detailUrl);
+
+            if (!links || links.length === 0) {
+                panel.innerHTML = '<span style="color:#8b949e;">No links found.</span>';
+            } else {
+                const grouped = {};
+                for (const l of links) {
+                    if (!grouped[l.host]) grouped[l.host] = [];
+                    grouped[l.host].push(l.url);
+                }
+
+                panel.innerHTML = Object.entries(grouped).map(([host, urls]) =>
+                    `<div style="margin-bottom:4px;">
+                        <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px;">${host}</span><br>
+                        ${urls.map(u =>
+                            `<span style="display:inline-flex; align-items:center; gap:6px; margin:1px 0;">
+                                <a href="${u}" target="_blank"
+                                    style="color:#00e5ff; text-decoration:none; word-break:break-all;"
+                                    onmouseover="this.style.textDecoration='underline'"
+                                    onmouseout="this.style.textDecoration='none'"
+                                >${u}</a>
+                                <span class="fs-copy-btn" data-url="${u}" title="Copy link"
+                                    style="cursor:pointer; font-size:11px; color:#8b949e; white-space:nowrap;
+                                           padding:1px 5px; border:1px solid #30363d; border-radius:4px;
+                                           user-select:none; flex-shrink:0;"
+                                    onmouseover="this.style.color='#e6edf3'; this.style.borderColor='#8b949e';"
+                                    onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d';"
+                                >📋</span>
+                            </span>`
+                        ).join('<br>')}
+                    </div>`
+                ).join('');
+            }
+
+            btn.innerHTML = '🔗';
+            panel.style.display = 'block';
+            open = true;
+
+            // Copy button handlers
+            panel.querySelectorAll('.fs-copy-btn').forEach(copyBtn => {
+                copyBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const urlToCopy = copyBtn.dataset.url;
+                    try {
+                        await navigator.clipboard.writeText(urlToCopy);
+                        copyBtn.textContent = '✓';
+                        copyBtn.style.color = '#00e5ff';
+                        copyBtn.style.borderColor = '#00e5ff';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋';
+                            copyBtn.style.color = '#8b949e';
+                            copyBtn.style.borderColor = '#30363d';
+                        }, 1500);
+                    } catch (_) {
+                        copyBtn.textContent = '✗';
+                        setTimeout(() => { copyBtn.textContent = '📋'; }, 1500);
+                    }
+                });
+            });
+        });
+
+        btn.addEventListener('mouseover', () => { if (!open) btn.style.background = 'rgba(0,229,255,0.08)'; });
+        btn.addEventListener('mouseout',  () => { if (!open) btn.style.background = 'transparent'; });
+
+        h5.appendChild(btn);
+        h5.after(panel);
+    }
+
+    function injectLinkButtons(container) {
+        for (const item of container.querySelectorAll('.fit.item')) {
+            injectLinkButton(item);
+        }
+    }
+
+
 
     const INPUT_STYLE = `
         background: #161b22;
@@ -499,11 +682,15 @@
         buildGroupDropdown(container);
         loadFilters();
         applyFilters(container);
+        injectLinkButtons(container);
 
         let debounceTimer;
         new MutationObserver(() => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => applyFilters(container), 150);
+            debounceTimer = setTimeout(() => {
+                applyFilters(container);
+                injectLinkButtons(container);
+            }, 150);
         }).observe(container, { childList: true, subtree: true });
     }
 

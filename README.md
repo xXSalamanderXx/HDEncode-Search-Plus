@@ -24,6 +24,7 @@ HDEncode is a great source for releases of all kinds, movies, TV shows, TV packs
 - Persistent filters: settings are saved to your browser's local storage and restored when you return. No data is sent anywhere.
 - No results feedback: clear message when your filters return zero results, with your selection preserved
 - Active filter highlights: a subtle cyan border shows which filters are currently active
+- Quick links: click the "🔗 Links" button on any release to instantly fetch and display the download links without leaving the page. Copy links to clipboard with one click.
 
 ---
 
@@ -109,6 +110,21 @@ Bug reports and suggestions are welcome via [GitHub Issues](https://github.com/m
 This project takes time to maintain and keep up to date. If it saves you time and you'd like to say thanks, a small donation is always appreciated!
 
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?logo=paypal&logoColor=white)](https://paypal.me/mikeymuis)
+
+---
+
+## Changelog
+
+### v1.1
+- Quick links: click "🔗 Links" on any release to fetch and display download links directly on the page, no need to navigate to the detail page
+- Copy any link to clipboard with a single click
+
+### v1.0
+- Initial release
+- Filtering by Dolby Vision, HDR, resolution, content type, IMDb rating, file size and release group
+- Free-text search
+- Multi-page loading with live progress bar
+- Persistent filters via local storage
 
 ---
 
