@@ -95,7 +95,7 @@ The filter bar appears at the top of the release grid on any HDEncode page.
 
 Tested on Chrome and Firefox with Tampermonkey. Should work with any Greasemonkey-compatible extension.
 
-Works on all HDEncode.org pages including category pages, search results and tag pages.
+Works on all HDEncode pages including category pages, search results and tag pages. Supports all three official domains: hdencode.org, hdencode.com and hdencode.ro.
 
 ---
 
@@ -114,6 +114,10 @@ This project takes time to maintain and keep up to date. If it saves you time an
 ---
 
 ## Changelog
+
+### v1.2
+- Fixed release group dropdown showing incorrect values after the quick links button was added
+- Added support for hdencode.com and hdencode.ro in addition to hdencode.org
 
 ### v1.1
 - Quick links: click "🔗 Links" on any release to fetch and display download links directly on the page, no need to navigate to the detail page

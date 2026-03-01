@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HDEncode Filter Suite
 // @namespace    https://hdencode.org/
-// @version      1.1
+// @version      1.2
 // @description  A Tampermonkey userscript that adds powerful filtering, searching and multi-page loading to HDEncode.org
 // @author       mikeymuis
 // @homepage     https://github.com/mikeymuis/hdencode-filter-suite
@@ -10,6 +10,10 @@
 // @downloadURL  https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js
 // @match        *://hdencode.org/*
 // @match        *://www.hdencode.org/*
+// @match        *://hdencode.com/*
+// @match        *://www.hdencode.com/*
+// @match        *://hdencode.ro/*
+// @match        *://www.hdencode.ro/*
 // @run-at       document-end
 // @grant        none
 // ==/UserScript==
@@ -20,7 +24,7 @@
     // ─── Script constants ─────────────────────────────────────────────────────
 
     const SCRIPT_NAME    = 'HDEncode Filter Suite';
-    const SCRIPT_VERSION = '1.1';
+    const SCRIPT_VERSION = '1.2';
     const SCRIPT_ID      = 'hdencode-filter-suite';
 
     // ─── Helpers: item data extraction ───────────────────────────────────────
@@ -40,13 +44,15 @@
     }
 
     function getSize(item) {
-        const title = item.querySelector('h5')?.innerText || '';
+        const a = item.querySelector('h5 a');
+        const title = a?.innerText || a?.textContent || '';
         const match = title.match(/–\s*(\d+(\.\d+)?)\s*GB/i);
         return match ? parseFloat(match[1]) : null;
     }
 
     function getGroup(item) {
-        const title = item.querySelector('h5')?.innerText || '';
+        const a = item.querySelector('h5 a');
+        const title = a?.innerText || a?.textContent || '';
         const clean = title.replace(/\s*–\s*[\d.]+\s*(GB|MB)\s*$/i, '').trim();
         const parts = clean.split('-');
         return parts.length > 1 ? parts.pop().trim() : '';
