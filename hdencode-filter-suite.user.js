@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HDEncode Filter Suite
 // @namespace    https://hdencode.org/
-// @version      1.2
+// @version      1.3
 // @description  A Tampermonkey userscript that adds powerful filtering, searching and multi-page loading to HDEncode.org
 // @author       mikeymuis
 // @homepage     https://github.com/mikeymuis/hdencode-filter-suite
@@ -24,7 +24,7 @@
     // ─── Script constants ─────────────────────────────────────────────────────
 
     const SCRIPT_NAME    = 'HDEncode Filter Suite';
-    const SCRIPT_VERSION = '1.2';
+    const SCRIPT_VERSION = '1.3';
     const SCRIPT_ID      = 'hdencode-filter-suite';
 
     // ─── Helpers: item data extraction ───────────────────────────────────────
@@ -254,10 +254,18 @@
             const unlockedDoc = new DOMParser().parseFromString(await postRes.text(), 'text/html');
 
             // Step 4: Extract links from blockquotes inside content-protector div
+            const HOST_NAMES = {
+                'rg': 'Rapidgator', 'rapidgator': 'Rapidgator',
+                'nf': 'Nitroflare', 'nitroflare': 'Nitroflare',
+                'ddl': 'DDL', 'mega': 'Mega', '1fichier': '1Fichier',
+                'ul': 'Uploadgig', 'uploadgig': 'Uploadgig',
+                'katfile': 'Katfile', 'filefox': 'Filefox',
+            };
             const links = [];
             for (const blockquote of unlockedDoc.querySelectorAll('.content-protector-access-form blockquote')) {
                 const img = blockquote.previousElementSibling?.querySelector('img');
-                const host = img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link';
+                const raw = (img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link').toLowerCase().trim();
+                const host = HOST_NAMES[raw] || raw.charAt(0).toUpperCase() + raw.slice(1);
                 for (const a of blockquote.querySelectorAll('a')) {
                     links.push({ host, url: a.href });
                 }
@@ -339,9 +347,30 @@
                     grouped[l.host].push(l.url);
                 }
 
-                panel.innerHTML = Object.entries(grouped).map(([host, urls]) =>
-                    `<div style="margin-bottom:4px;">
-                        <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px;">${host}</span><br>
+                const HOST_COLORS = {
+                    'Rapidgator': '#00b4d8', 'Nitroflare': '#f59e0b',
+                    'Mega': '#e74c3c', '1Fichier': '#8b5cf6',
+                    'Uploadgig': '#22c55e', 'Katfile': '#ec4899',
+                    'Filefox': '#f97316', 'DDL': '#8b949e',
+                };
+
+                panel.innerHTML = Object.entries(grouped).map(([host, urls]) => {
+                    const color = HOST_COLORS[host] || '#8b949e';
+                    const allUrls = urls.join('\n');
+                    return `<div style="margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+                                <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; font-weight:600;">${host}</span>
+                            </div>
+                            ${urls.length > 1 ? `<span class="fs-copy-btn" data-url="${allUrls}" title="Copy all ${host} links"
+                                style="cursor:pointer; font-size:10px; color:#8b949e; white-space:nowrap;
+                                       padding:1px 6px; border:1px solid #30363d; border-radius:4px;
+                                       user-select:none; flex-shrink:0;"
+                                onmouseover="this.style.color='#e6edf3'; this.style.borderColor='#8b949e';"
+                                onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d';"
+                            >📋 Copy all</span>` : ''}
+                        </div>
                         ${urls.map(u =>
                             `<span style="display:inline-flex; align-items:center; gap:6px; margin:1px 0;">
                                 <a href="${u}" target="_blank"
@@ -358,11 +387,11 @@
                                 >📋</span>
                             </span>`
                         ).join('<br>')}
-                    </div>`
-                ).join('');
+                    </div>`;
+                }).join('');
             }
 
-            btn.innerHTML = '🔗';
+            btn.innerHTML = '🔗 Links';
             panel.style.display = 'block';
             open = true;
 

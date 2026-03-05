@@ -1,5 +1,10 @@
 # HDEncode Filter Suite
 
+![Version](https://img.shields.io/badge/version-1.3-00e5ff?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![Tampermonkey](https://img.shields.io/badge/Tampermonkey-required-orange?style=flat-square)
+![Domains](https://img.shields.io/badge/works%20on-hdencode.org%20%7C%20.com%20%7C%20.ro-blue?style=flat-square)
+
 ![HDEncode Filter Suite](https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/screenshot.png)
 
 HDEncode is a great source for releases of all kinds, movies, TV shows, TV packs. The site has filters, but I kept missing specific options. I mainly use it to track down specific TV show releases and wanted to combine things like release group, Dolby Vision and resolution in one go. Doing that manually meant scrolling through pages every single time. This script adds the extra filter options I was missing, directly above the release grid.
@@ -24,7 +29,7 @@ HDEncode is a great source for releases of all kinds, movies, TV shows, TV packs
 - Persistent filters: settings are saved to your browser's local storage and restored when you return. No data is sent anywhere.
 - No results feedback: clear message when your filters return zero results, with your selection preserved
 - Active filter highlights: a subtle cyan border shows which filters are currently active
-- Quick links: click the "🔗 Links" button on any release to instantly fetch and display the download links without leaving the page. Copy links to clipboard with one click.
+- Quick links: click the "🔗 Links" button on any release to instantly fetch and display the download links without leaving the page. Hosters are shown with a colored indicator and their full name. Copy individual links or all links for a hoster at once with a single click.
 
 ---
 
@@ -114,6 +119,11 @@ This project takes time to maintain and keep up to date. If it saves you time an
 ---
 
 ## Changelog
+
+### v1.3
+- Download link panel now shows hoster names in full (e.g. "rg" → "Rapidgator") with a colored indicator per hoster
+- Added "Copy all" button per hoster to copy all parts in one click, useful for multi-part releases
+- Copy individual links still available per link
 
 ### v1.2
 - Fixed release group dropdown showing incorrect values after the quick links button was added
