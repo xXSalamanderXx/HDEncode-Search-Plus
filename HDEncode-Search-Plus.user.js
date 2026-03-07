@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0
-// @description  Filtering, live custom search, safer clear handling, custom pagination, empty-state messaging, and quick links for HDEncode.org
+// @version      1.0.1
+// @description  Filtering, live custom search, safer clear handling, custom pagination, category switching, quick links, and styled UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
 // @supportURL   https://github.com/xXSalamanderXx/HDEncode-Search-Plus/issues/
@@ -28,17 +28,21 @@
     const ACCENT_BG = 'rgba(229, 9, 20, 0.08)';
     const ACCENT_BORDER = 'rgba(229, 9, 20, 0.35)';
 
-    const SEARCH_GREEN_TOP = '#166534';
-    const SEARCH_GREEN_BOTTOM = '#0f5132';
-    const SEARCH_GREEN_HOVER_TOP = '#1f7a4d';
-    const SEARCH_GREEN_HOVER_BOTTOM = '#14532d';
-    const SEARCH_GREEN_BORDER = 'rgba(34, 197, 94, 0.60)';
-    const SEARCH_GREEN_GLOW = 'rgba(34, 197, 94, 0.22)';
-    const SEARCH_STATUS_GREEN = '#22c55e';
+    const SEARCH_TOP = '#6d5cff';
+    const SEARCH_BOTTOM = '#3f48ff';
+    const SEARCH_HOVER_TOP = '#8374ff';
+    const SEARCH_HOVER_BOTTOM = '#5260ff';
+    const SEARCH_BORDER = 'rgba(109, 92, 255, 0.68)';
+    const SEARCH_GLOW = 'rgba(109, 92, 255, 0.26)';
+    const SEARCH_STATUS = '#5a67ff';
+
+    const CARD_GLOW = 'rgba(109, 92, 255, 0.22)';
+    const CARD_GLOW_STRONG = 'rgba(109, 92, 255, 0.32)';
+    const FRAME_RED_GLOW = 'rgba(229, 9, 20, 0.18)';
+    const FRAME_RED_GLOW_HOVER = 'rgba(229, 9, 20, 0.34)';
 
     let isLoadingPages = false;
     let abortController = null;
-    let nextPageToLoad = 2;
     let rootContainer = null;
     let resultsGrid = null;
     let observer = null;
@@ -65,18 +69,37 @@
         style.id = `${SCRIPT_ID}-styles`;
         style.textContent = `
             @keyframes fs-activity-scan {
-                0%   { background-position: 200% 0; }
+                0% { background-position: 200% 0; }
                 100% { background-position: -200% 0; }
             }
 
             #${SCRIPT_ID}-bar {
                 position: relative;
-                z-index: 5;
+                z-index: 20;
                 clear: both;
                 width: 100%;
                 max-width: 100%;
                 box-sizing: border-box;
                 overflow: visible;
+                background: #0d1117;
+                padding: 14px 18px 18px 18px;
+                border-radius: 14px;
+                border: 1px solid #21262d;
+                margin: 0 0 28px 0;
+                color: #e6edf3;
+                font-size: 13px;
+                box-shadow:
+                    0 4px 20px rgba(0,0,0,0.22),
+                    0 0 0 1px rgba(255,255,255,0.02) inset,
+                    0 0 20px ${FRAME_RED_GLOW};
+                transition: box-shadow 0.22s ease, transform 0.22s ease;
+            }
+
+            #${SCRIPT_ID}-bar:hover {
+                box-shadow:
+                    0 8px 24px rgba(0,0,0,0.28),
+                    0 0 0 1px rgba(255,255,255,0.03) inset,
+                    0 0 30px ${FRAME_RED_GLOW_HOVER};
             }
 
             #${SCRIPT_ID}-bar .fs-toolbar-row {
@@ -140,28 +163,28 @@
             }
 
             .fs-search-match {
-                outline: 1px solid rgba(34, 197, 94, 0.60);
+                outline: 1px solid rgba(109, 92, 255, 0.62);
                 box-shadow:
-                    0 0 0 1px rgba(34, 197, 94, 0.26) inset,
-                    0 0 18px rgba(34, 197, 94, 0.20),
-                    0 0 34px rgba(34, 197, 94, 0.12) !important;
+                    0 0 0 1px rgba(109, 92, 255, 0.24) inset,
+                    0 0 18px rgba(109, 92, 255, 0.18),
+                    0 0 34px rgba(109, 92, 255, 0.10) !important;
             }
 
             .fs-visible-card {
                 border-radius: 14px !important;
                 overflow: hidden;
                 box-shadow:
-                    0 0 0 1px rgba(34,197,94,0.24),
-                    0 0 22px rgba(34,197,94,0.22),
-                    0 0 40px rgba(34,197,94,0.12) !important;
+                    0 0 0 1px rgba(109, 92, 255, 0.20),
+                    0 0 20px ${CARD_GLOW},
+                    0 0 38px rgba(109, 92, 255, 0.10) !important;
                 transition: box-shadow 0.2s ease, transform 0.2s ease;
             }
 
             .fs-visible-card:hover {
                 box-shadow:
-                    0 0 0 1px rgba(34,197,94,0.32),
-                    0 0 26px rgba(34,197,94,0.28),
-                    0 0 46px rgba(34,197,94,0.16) !important;
+                    0 0 0 1px rgba(109, 92, 255, 0.30),
+                    0 0 26px ${CARD_GLOW_STRONG},
+                    0 0 46px rgba(109, 92, 255, 0.16) !important;
                 transform: translateY(-1px);
             }
 
@@ -211,16 +234,16 @@
             }
 
             #f-custom-pagination a:hover {
-                border-color: rgba(34,197,94,0.45);
-                box-shadow: 0 0 0 1px rgba(34,197,94,0.12) inset;
+                border-color: rgba(109, 92, 255, 0.45);
+                box-shadow: 0 0 0 1px rgba(109, 92, 255, 0.12) inset;
                 transform: translateY(-1px);
             }
 
             #f-custom-pagination .current,
             #f-custom-pagination .active {
                 color: #ffffff;
-                background: linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%);
-                border: 1px solid ${SEARCH_GREEN_BORDER};
+                background: linear-gradient(180deg, ${SEARCH_TOP} 0%, ${SEARCH_BOTTOM} 100%);
+                border: 1px solid ${SEARCH_BORDER};
                 font-weight: 700;
                 text-shadow:
                     -1px 0 rgba(0,0,0,0.98),
@@ -242,6 +265,22 @@
                 text-align: center;
             }
 
+            #f-category-note {
+                display: none;
+                margin-top: 10px;
+                padding: 12px 14px;
+                border-radius: 14px;
+                background: transparent;
+                color: #e6edf3;
+                border: 1px solid rgba(229, 9, 20, 0.28);
+                box-shadow:
+                    0 0 18px rgba(229, 9, 20, 0.22),
+                    0 0 34px rgba(229, 9, 20, 0.14),
+                    inset 0 0 0 1px rgba(255,255,255,0.02);
+                font-size: 13px;
+                line-height: 1.5;
+            }
+
             @media (max-width: 980px) {
                 #${SCRIPT_ID}-bar .fs-toolbar-left,
                 #${SCRIPT_ID}-bar .fs-toolbar-right {
@@ -259,25 +298,108 @@
         document.head.appendChild(style);
     }
 
+    function getCurrentOrigin() {
+        return window.location.origin;
+    }
+
+    function getMoviesUrl() {
+        return `${getCurrentOrigin()}/tag/movies/`;
+    }
+
+    function getTvShowsUrl() {
+        return `${getCurrentOrigin()}/tag/tv-shows/`;
+    }
+
+    function getTvPacksUrl() {
+        return `${getCurrentOrigin()}/tag/tv-packs/`;
+    }
+
+    function getTopDownloadsUrl() {
+        return `${getCurrentOrigin()}/top-downloads/`;
+    }
+
+    function getUhd4kUrl() {
+        return `${getCurrentOrigin()}/quality/2160p/`;
+    }
+
+    function getCurrentPath() {
+        return window.location.pathname.replace(/\/+$/, '/');
+    }
+
+    function isMoviesCategoryPage() {
+        return getCurrentPath().startsWith('/tag/movies/');
+    }
+
+    function isTvShowsCategoryPage() {
+        return getCurrentPath().startsWith('/tag/tv-shows/');
+    }
+
+    function isTvPacksCategoryPage() {
+        return getCurrentPath().startsWith('/tag/tv-packs/');
+    }
+
+    function isTopDownloadsCategoryPage() {
+        return getCurrentPath().startsWith('/top-downloads/');
+    }
+
+    function isUhd4kCategoryPage() {
+        return getCurrentPath().startsWith('/quality/2160p/');
+    }
+
+    function updateRecommendedUseNotice() {
+        const note = document.getElementById('f-category-note');
+        if (!note) return;
+        note.style.display = (
+            !isMoviesCategoryPage() &&
+            !isTvShowsCategoryPage() &&
+            !isTvPacksCategoryPage() &&
+            !isTopDownloadsCategoryPage() &&
+            !isUhd4kCategoryPage()
+        ) ? 'block' : 'none';
+    }
+
+    function syncCategorySelectToLocation() {
+        const select = document.getElementById('f-category');
+        if (!select) return;
+
+        if (isMoviesCategoryPage()) {
+            select.value = getMoviesUrl();
+        } else if (isTvShowsCategoryPage()) {
+            select.value = getTvShowsUrl();
+        } else if (isTvPacksCategoryPage()) {
+            select.value = getTvPacksUrl();
+        } else if (isTopDownloadsCategoryPage()) {
+            select.value = getTopDownloadsUrl();
+        } else if (isUhd4kCategoryPage()) {
+            select.value = getUhd4kUrl();
+        } else {
+            select.value = '';
+        }
+
+        updateRecommendedUseNotice();
+    }
+
     function findContainer() {
-        return document.querySelector('div.peliculas') || document.querySelector('.box');
+        return document.querySelector('.peliculas')
+            || document.querySelector('div.peliculas')
+            || document.querySelector('.box');
     }
 
     function findResultsGrid(container = document) {
-        return container.querySelector('.item_2.items') ||
-               container.querySelector('.item_2');
+        return container.querySelector('.peliculas .item_2.items')
+            || container.querySelector('.box .item_2.items')
+            || container.querySelector('.item_2.items')
+            || container.querySelector('.peliculas .item_2')
+            || container.querySelector('.box .item_2')
+            || container.querySelector('.item_2');
     }
 
     function getActiveResultsGrid(container = rootContainer || document) {
-        return resultsGrid ||
-               findResultsGrid(container) ||
-               container.querySelector('.peliculas .item_2.items') ||
-               container.querySelector('.box .item_2.items') ||
-               container;
+        return resultsGrid || findResultsGrid(container) || container;
     }
 
     function findNativePaginationElement(doc = document) {
-        return doc.querySelector('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links');
+        return doc.querySelector('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers');
     }
 
     function captureNativePagination() {
@@ -286,7 +408,7 @@
     }
 
     function hideNativePagination() {
-        document.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links')
+        document.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers')
             .forEach(el => el.classList.add('fs-hide-pagination'));
     }
 
@@ -308,14 +430,24 @@
         const items = Array.from(original.querySelectorAll('a, span'));
         for (const item of items) {
             const clone = item.cloneNode(true);
-            const text = (clone.textContent || '').trim();
-            if (!text) continue;
+            const rawText = (clone.textContent || '').trim();
+            if (!rawText) continue;
+
+            if (/^previous(\s+page)?$/i.test(rawText) || /^prev(ious)?$/i.test(rawText)) {
+                clone.textContent = '←';
+                clone.title = 'Previous Page';
+            } else if (/^next(\s+page)?$/i.test(rawText) || /^next$/i.test(rawText)) {
+                clone.textContent = '→';
+                clone.title = 'Next Page';
+            }
+
+            const finalText = (clone.textContent || '').trim();
 
             if (clone.tagName.toLowerCase() === 'span') {
                 const cls = clone.className || '';
                 const isCurrent = /current|active/i.test(cls);
-                if (isCurrent || /^\d+$/.test(text)) {
-                    clone.classList.add('current');
+                if (isCurrent || /^\d+$/.test(finalText) || finalText === '←' || finalText === '→') {
+                    if (isCurrent) clone.classList.add('current');
                     wrap.appendChild(clone);
                 }
             } else {
@@ -353,11 +485,7 @@
 
     function buildPageUrl(pageNum) {
         const base = new URL(baseListingUrl || getBaseListingUrl());
-
-        if (pageNum <= 1) {
-            return base.toString();
-        }
-
+        if (pageNum <= 1) return base.toString();
         const cleanPath = base.pathname.replace(/\/+$/, '');
         return `${base.origin}${cleanPath}/page/${pageNum}/${base.search}`;
     }
@@ -398,9 +526,13 @@
         }
     }
 
+    function getAllItems(scope = rootContainer || document) {
+        return Array.from(scope.querySelectorAll('.fit.item'));
+    }
+
     function hasDV(item) {
         const span = item.querySelector('.imdb_r span');
-        return !!span && span.getAttribute('style')?.includes('dv.png');
+        return !!span && (span.getAttribute('style') || '').includes('dv.png');
     }
 
     function hasHDR(item) {
@@ -408,40 +540,43 @@
     }
 
     function getRating(item) {
-        const match = item.innerText.match(/Rating\s*:\s*(\d+\.\d+)\/10/i);
+        const match = (item.innerText || '').match(/Rating\s*:\s*(\d+(\.\d+)?)\/10/i);
         return match ? parseFloat(match[1]) : 0;
     }
 
     function getSize(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const match = title.match(/–\s*(\d+(\.\d+)?)\s*GB/i);
+        const match = title.match(/[–-]\s*(\d+(\.\d+)?)\s*GB/i);
         return match ? parseFloat(match[1]) : null;
     }
 
     function getGroup(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const clean = title.replace(/\s*–\s*[\d.]+\s*(GB|MB)\s*$/i, '').trim();
+        const clean = title.replace(/\s*[–-]\s*[\d.]+\s*(GB|MB)\s*$/i, '').trim();
         const parts = clean.split('-');
         return parts.length > 1 ? parts.pop().trim() : '';
     }
 
     function getResolution(item) {
         for (const span of item.querySelectorAll('.calidad3')) {
-            if (span.innerText.match(/\d{3,4}p/i)) return span.innerText.trim();
+            const text = (span.innerText || span.textContent || '').trim();
+            if (/\b2160p\b/i.test(text)) return '2160p';
+            if (/\b1080p\b/i.test(text)) return '1080p';
+            if (/\b720p\b/i.test(text)) return '720p';
         }
         return '';
     }
 
     function getItemKey(item) {
-        return item.querySelector('h5 a')?.href ||
-               item.querySelector('h5 a')?.textContent?.trim() ||
-               item.textContent.trim().slice(0, 200);
+        return item.querySelector('h5 a')?.href
+            || item.querySelector('h5 a')?.textContent?.trim()
+            || item.textContent.trim().slice(0, 200);
     }
 
     function indexExistingItems(container) {
-        for (const item of container.querySelectorAll('.fit.item')) {
+        for (const item of getAllItems(container)) {
             const key = getItemKey(item);
             if (key) seenReleaseLinks.add(key);
         }
@@ -454,17 +589,15 @@
         const current = select.value;
         const groups = new Set();
 
-        for (const item of container.querySelectorAll('.fit.item')) {
+        for (const item of getAllItems(container)) {
             if (item.style.display === 'none') continue;
             const g = getGroup(item);
             if (g) groups.add(g);
         }
 
-        const sorted = Array.from(groups).sort((a, b) =>
-            a.toLowerCase().localeCompare(b.toLowerCase())
-        );
-
+        const sorted = Array.from(groups).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         select.innerHTML = '<option value="">All Release Groups</option>';
+
         for (const g of sorted) {
             const opt = document.createElement('option');
             opt.value = g.toLowerCase();
@@ -475,23 +608,6 @@
         if (current && Array.from(select.options).some(o => o.value === current)) {
             select.value = current;
         }
-    }
-
-    function syncCategorySelectToLocation() {
-        const select = document.getElementById('f-category');
-        if (!select) return;
-
-        const href = window.location.href.replace(/\/+$/, '/');
-        const options = [
-            'https://hdencode.org/tag/movies/',
-            'https://hdencode.org/tag/tv-shows/',
-            'https://hdencode.org/tag/tv-packs/',
-            'https://hdencode.org/top-downloads/',
-            'https://hdencode.org/quality/2160p/'
-        ];
-
-        const matched = options.find(url => href.startsWith(url));
-        select.value = matched || 'https://hdencode.org/tag/movies/';
     }
 
     function getFilterValues() {
@@ -523,7 +639,7 @@
     function saveFilters() {
         const data = {};
         for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-            if (el.id === 'f-pagelimit' || el.id === 'f-category') continue;
+            if (el.id === 'f-category') continue;
             data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         }
         try {
@@ -535,7 +651,7 @@
         try {
             const data = JSON.parse(localStorage.getItem('hdencodeFilters') || '{}');
             for (const [id, val] of Object.entries(data)) {
-                if (id === 'f-pagelimit' || id === 'f-category') continue;
+                if (id === 'f-category') continue;
                 const el = document.getElementById(id);
                 if (!el) continue;
                 if (el.type === 'checkbox') el.checked = val;
@@ -584,25 +700,22 @@
     }
 
     function styleVisibleResults(container) {
-        const items = Array.from(container.querySelectorAll('.fit.item'));
+        const items = getAllItems(container);
         for (const item of items) {
-            if (item.style.display === 'none') {
-                item.classList.remove('fs-visible-card');
-            } else {
-                item.classList.add('fs-visible-card');
-            }
+            if (item.style.display === 'none') item.classList.remove('fs-visible-card');
+            else item.classList.add('fs-visible-card');
         }
     }
 
     function applyFilters(container) {
         const f = getFilterValues();
-        const items = Array.from(container.querySelectorAll('.fit.item'));
+        const items = getAllItems(container);
         let searchMatches = 0;
         let visibleCount = 0;
 
         for (const item of items) {
             const matchesBase = itemMatchesBaseFilters(item, f);
-            const matchesSearch = f.search ? matchesCustomSearchText(item.innerText, f.search) : false;
+            const matchesSearch = f.search ? matchesCustomSearchText(item.innerText || item.textContent || '', f.search) : false;
 
             if (f.search) {
                 const finalMatch = matchesBase && matchesSearch;
@@ -625,10 +738,10 @@
         if (searchStatus) {
             if (f.search) {
                 searchStatus.textContent = isLoadingPages
-                    ? `${searchMatches} Results Found For Custom Search — searching more pages...`
+                    ? `${searchMatches} Results Found For Custom Search — Searching More Pages....`
                     : `${searchMatches} Results Found For Custom Search`;
                 searchStatus.style.display = 'block';
-                searchStatus.style.color = SEARCH_STATUS_GREEN;
+                searchStatus.style.color = SEARCH_STATUS;
             } else {
                 searchStatus.textContent = '';
                 searchStatus.style.display = 'none';
@@ -652,6 +765,7 @@
             buildGroupDropdown(container);
             applyFilters(container);
             injectLinkButtons(container);
+            syncCategorySelectToLocation();
 
             if (opts.clearStatus) {
                 setStatus('');
@@ -666,9 +780,7 @@
 
     function scheduleRefresh(container) {
         clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(() => {
-            queueUIRefresh(container);
-        }, 80);
+        refreshTimer = setTimeout(() => queueUIRefresh(container), 80);
     }
 
     function abortActiveLoading(reason = 'stopped') {
@@ -722,7 +834,7 @@
         if (stopBtn) stopBtn.disabled = true;
         if (loadBtn) loadBtn.disabled = true;
 
-        setStatus('Stopping search...');
+        setStatus('Stopping Search....');
         hideProgress(true);
 
         if (!didAbort) {
@@ -766,9 +878,7 @@
             pauseObserver();
 
             for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-                if (el.id === 'f-pagelimit') {
-                    el.value = 'all';
-                } else if (el.id === 'f-category') {
+                if (el.id === 'f-category') {
                     continue;
                 } else if (el.type === 'checkbox') {
                     el.checked = false;
@@ -790,10 +900,7 @@
                 stopBtn.style.display = 'none';
                 stopBtn.disabled = false;
             }
-
-            if (loadBtn) {
-                loadBtn.disabled = false;
-            }
+            if (loadBtn) loadBtn.disabled = false;
 
             abortController = null;
             isLoadingPages = false;
@@ -811,15 +918,9 @@
             styleVisibleResults(container);
             hideNativePagination();
             renderCustomPagination();
-            updateEmptyState(
-                container,
-                Array.from(container.querySelectorAll('.fit.item')).some(item => item.style.display !== 'none')
-            );
+            updateEmptyState(container, getAllItems(container).some(item => item.style.display !== 'none'));
         } finally {
-            setTimeout(() => {
-                resumeObserver();
-            }, 50);
-
+            setTimeout(() => resumeObserver(), 50);
             clearInProgress = false;
         }
     }
@@ -828,7 +929,7 @@
         const itemGrid = getActiveResultsGrid(container);
         const firstPageUrl = buildPageUrl(1);
 
-        setStatus('Loading first page...');
+        setStatus('Loading First Page....');
 
         const res = await fetch(firstPageUrl, {
             credentials: 'same-origin',
@@ -875,18 +976,16 @@
         resumeObserver();
 
         resultsGrid = itemGrid;
-        nextPageToLoad = 2;
         hideNativePagination();
         renderCustomPagination();
         injectLinkButtons(container);
         applyFilters(container);
+        syncCategorySelectToLocation();
 
         return true;
     }
 
     async function loadAllPages(container) {
-        const limitVal = document.getElementById('f-pagelimit')?.value || 'all';
-        const limit = limitVal === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(limitVal, 10);
         const runId = ++searchRunId;
         const localToken = ++activeLoadToken;
 
@@ -911,18 +1010,18 @@
 
             const firstState = applyFilters(container);
             if (getFilterValues().search) {
-                setStatus(`${firstState.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
+                setStatus(`${firstState.searchMatches} Result(s) Found So Far — Scanned ${loaded} Page(s)`);
             } else {
-                setStatus(`${loaded} page(s) loaded`);
+                setStatus(`${loaded} Page(s) Loaded`);
             }
 
-            for (let p = 2; loaded < limit; p++) {
+            for (let p = 2; ; p++) {
                 if (signal.aborted || runId !== searchRunId || localToken !== activeLoadToken) {
                     stopReason = 'stopped';
                     break;
                 }
 
-                setStatus(`Checking page ${p}`);
+                setStatus(`Searching Page ${p}....`);
 
                 const url = buildPageUrl(p);
                 const res = await fetch(url, {
@@ -968,9 +1067,7 @@
                     newItemsCount++;
                 }
 
-                if (newItemsCount === 0) {
-                    continue;
-                }
+                if (newItemsCount === 0) continue;
 
                 pauseObserver();
                 await new Promise(resolve => {
@@ -983,15 +1080,14 @@
 
                 resultsGrid = itemGrid;
                 loaded++;
-                nextPageToLoad = p + 1;
 
                 const state = applyFilters(container);
                 injectLinkButtons(container);
 
                 if (getFilterValues().search) {
-                    setStatus(`${state.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
+                    setStatus(`${state.searchMatches} Result(s) Found So Far — Scanned ${loaded} Page(s)`);
                 } else {
-                    setStatus(`${loaded} page(s) loaded`);
+                    setStatus(`${loaded} Page(s) Loaded`);
                 }
 
                 await new Promise(r => setTimeout(r, 60));
@@ -1014,14 +1110,14 @@
             if (!clearInProgress) {
                 if (stopReason === 'stopped' || wasStopping) {
                     setStatus(getFilterValues().search
-                        ? `${finalState.searchMatches} result(s) found`
-                        : (loaded > 0 ? `Stopped — ${loaded} page(s) loaded` : 'Search stopped'));
+                        ? `${finalState.searchMatches} Result(s) Found`
+                        : (loaded > 0 ? `Stopped — ${loaded} Page(s) Loaded` : 'Search Stopped'));
                 } else if (stopReason === 'error') {
-                    setStatus('Error loading pages');
+                    setStatus('Error Loading Pages');
                 } else {
                     setStatus(getFilterValues().search
-                        ? `${finalState.searchMatches} result(s) found`
-                        : (loaded > 0 ? `${loaded} page(s) loaded` : 'No more pages to load'));
+                        ? `${finalState.searchMatches} Result(s) Found`
+                        : (loaded > 0 ? `${loaded} Page(s) Loaded` : 'No More Pages To Load'));
                 }
             }
 
@@ -1037,13 +1133,13 @@
             setTimeout(() => {
                 const t = document.getElementById('f-load-status')?.textContent || '';
                 if (
-                    t === 'Error loading pages' ||
-                    t === 'Search stopped' ||
-                    t === 'Stopping search...' ||
+                    t === 'Error Loading Pages' ||
+                    t === 'Search Stopped' ||
+                    t === 'Stopping Search....' ||
                     t.startsWith('Stopped —') ||
-                    t.endsWith('page(s) loaded') ||
-                    t.endsWith('result(s) found') ||
-                    t === 'No more pages to load'
+                    t.endsWith('Page(s) Loaded') ||
+                    t.endsWith('Result(s) Found') ||
+                    t === 'No More Pages To Load'
                 ) {
                     setStatus('');
                 }
@@ -1067,11 +1163,11 @@
                 if (input.name) formData.append(input.name, input.value);
             }
 
-            const action = new URL(form.getAttribute('action'), url).href;
+            const action = new URL(form.getAttribute('action') || url, url).href;
             const postRes = await fetch(action, {
                 method: 'POST',
                 credentials: 'same-origin',
-                body: formData,
+                body: formData
             });
             if (!postRes.ok) return null;
 
@@ -1088,15 +1184,19 @@
                 ul: 'Uploadgig',
                 uploadgig: 'Uploadgig',
                 katfile: 'Katfile',
-                filefox: 'Filefox',
+                filefox: 'Filefox'
             };
 
             const links = [];
+
             for (const blockquote of unlockedDoc.querySelectorAll('.content-protector-access-form blockquote')) {
                 const img = blockquote.previousElementSibling?.querySelector('img');
-                const raw = (img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link')
-                    .toLowerCase()
-                    .trim();
+                const raw = (
+                    img?.alt ||
+                    img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') ||
+                    'Link'
+                ).toLowerCase().trim();
+
                 const host = HOST_NAMES[raw] || raw.charAt(0).toUpperCase() + raw.slice(1);
 
                 for (const a of blockquote.querySelectorAll('a')) {
@@ -1138,7 +1238,7 @@
             userSelect: 'none',
             verticalAlign: 'middle',
             whiteSpace: 'nowrap',
-            flexShrink: '0',
+            flexShrink: '0'
         });
 
         const panel = document.createElement('div');
@@ -1152,7 +1252,7 @@
             border: '1px solid #21262d',
             borderRadius: '6px',
             fontSize: '12px',
-            lineHeight: '1.8',
+            lineHeight: '1.8'
         });
 
         let open = false;
@@ -1190,35 +1290,40 @@
                     Uploadgig: '#22c55e',
                     Katfile: '#ec4899',
                     Filefox: '#f97316',
-                    DDL: '#8b949e',
+                    DDL: '#8b949e'
                 };
 
                 panel.innerHTML = Object.entries(grouped).map(([host, urls]) => {
                     const color = HOST_COLORS[host] || '#8b949e';
                     const allUrls = urls.join('\n');
 
-                    return `<div style="margin-bottom:8px;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
-                                <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; font-weight:600;">${host}</span>
+                    return `
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+                                    <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; font-weight:600;">${host}</span>
+                                </div>
+                                ${urls.length > 1 ? `
+                                    <span class="fs-copy-btn" data-url="${allUrls.replace(/"/g, '&quot;')}" data-label="Copy all"
+                                        title="Copy all ${host} links"
+                                        style="cursor:pointer; font-size:10px; color:#8b949e; white-space:nowrap; padding:1px 6px; border:1px solid #30363d; border-radius:4px; user-select:none; flex-shrink:0;">
+                                        Copy all
+                                    </span>
+                                ` : ''}
                             </div>
-                            ${urls.length > 1 ? `<span class="fs-copy-btn" data-url="${allUrls}" data-label="📋 Copy all" title="Copy all ${host} links"
-                                style="cursor:pointer; font-size:10px; color:#8b949e; white-space:nowrap;
-                                       padding:1px 6px; border:1px solid #30363d; border-radius:4px;
-                                       user-select:none; flex-shrink:0;">📋 Copy all</span>` : ''}
+                            ${urls.map(u => `
+                                <div style="margin:1px 0;">
+                                    <a href="${u}" target="_blank" style="color:${ACCENT}; text-decoration:none; word-break:break-all;">${u}</a>
+                                    <span class="fs-copy-btn" data-url="${u.replace(/"/g, '&quot;')}" data-label="Copy"
+                                        title="Copy link"
+                                        style="cursor:pointer; font-size:11px; color:#8b949e; white-space:nowrap; padding:1px 5px; border:1px solid #30363d; border-radius:4px; user-select:none; margin-left:6px;">
+                                        Copy
+                                    </span>
+                                </div>
+                            `).join('')}
                         </div>
-                        ${urls.map(u =>
-                            `<span style="display:inline-flex; align-items:center; gap:6px; margin:1px 0;">
-                                <a href="${u}" target="_blank"
-                                    style="color:${ACCENT}; text-decoration:none; word-break:break-all;">${u}</a>
-                                <span class="fs-copy-btn" data-url="${u}" data-label="📋" title="Copy link"
-                                    style="cursor:pointer; font-size:11px; color:#8b949e; white-space:nowrap;
-                                           padding:1px 5px; border:1px solid #30363d; border-radius:4px;
-                                           user-select:none; flex-shrink:0;">📋</span>
-                            </span>`
-                        ).join('<br>')}
-                    </div>`;
+                    `;
                 }).join('');
             }
 
@@ -1237,14 +1342,14 @@
                     copyBtn.style.borderColor = '#30363d';
                 });
 
-                copyBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
+                copyBtn.addEventListener('click', async (ev) => {
+                    ev.stopPropagation();
                     const urlToCopy = copyBtn.dataset.url;
-                    const originalLabel = copyBtn.dataset.label || '📋';
+                    const originalLabel = copyBtn.dataset.label || 'Copy';
 
                     try {
                         await navigator.clipboard.writeText(urlToCopy);
-                        copyBtn.textContent = '✓';
+                        copyBtn.textContent = 'Copied';
                         copyBtn.style.color = ACCENT;
                         copyBtn.style.borderColor = ACCENT;
                         setTimeout(() => {
@@ -1253,7 +1358,7 @@
                             copyBtn.style.borderColor = '#30363d';
                         }, 1500);
                     } catch (_) {
-                        copyBtn.textContent = '✗';
+                        copyBtn.textContent = 'Failed';
                         setTimeout(() => {
                             copyBtn.textContent = originalLabel;
                         }, 1500);
@@ -1275,7 +1380,7 @@
     }
 
     function injectLinkButtons(container) {
-        for (const item of container.querySelectorAll('.fit.item')) {
+        for (const item of getAllItems(container)) {
             injectLinkButton(item);
         }
     }
@@ -1293,24 +1398,21 @@
         box-sizing: border-box;
     `;
 
+    function makeIconButton(id, label, borderColor, textColor) {
+        return `
+            <button id="${id}"
+                style="background:transparent; color:${textColor};
+                       border:1px solid ${borderColor};
+                       border-radius:6px; padding:5px 11px; cursor:pointer; font-size:13px;
+                       height:30px; box-sizing:border-box; transition:all 0.2s; white-space:nowrap;">
+                ${label}
+            </button>
+        `;
+    }
+
     function createBar() {
         const bar = document.createElement('div');
         bar.id = `${SCRIPT_ID}-bar`;
-
-        Object.assign(bar.style, {
-            background: '#0d1117',
-            padding: '14px 18px 18px 18px',
-            borderRadius: '12px',
-            border: '1px solid #21262d',
-            margin: '0 0 28px 0',
-            color: '#e6edf3',
-            fontSize: '13px',
-            boxShadow: '0 4px 20px rgba(229,9,20,0.15)',
-            width: '100%',
-            maxWidth: '100%',
-            boxSizing: 'border-box',
-            overflow: 'visible'
-        });
 
         bar.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
@@ -1347,14 +1449,22 @@
                 </div>
 
                 <div class="fs-toolbar-right">
-                    <select id="f-category" style="${INPUT_STYLE} width:150px;">
-                        <option value="https://hdencode.org/tag/movies/">Movies</option>
-                        <option value="https://hdencode.org/tag/tv-shows/">TV Shows</option>
-                        <option value="https://hdencode.org/tag/tv-packs/">TV Packs</option>
-                        <option value="https://hdencode.org/top-downloads/">Top Downloads</option>
-                        <option value="https://hdencode.org/quality/2160p/">4K UHD</option>
+                    ${makeIconButton('f-nav-back', '←', 'rgba(255,255,255,0.22)', '#dbe2ff')}
+                    ${makeIconButton('f-nav-forward', '→', 'rgba(255,255,255,0.22)', '#dbe2ff')}
+
+                    <select id="f-category" style="${INPUT_STYLE} width:270px;">
+                        <option value="">Select Category (page reloads)</option>
+                        <option value="${getMoviesUrl()}">Movies</option>
+                        <option value="${getTvShowsUrl()}">TV Shows</option>
+                        <option value="${getTvPacksUrl()}">TV Packs</option>
+                        <option value="${getTopDownloadsUrl()}">Top Downloads</option>
+                        <option value="${getUhd4kUrl()}">4K UHD</option>
                     </select>
                 </div>
+            </div>
+
+            <div id="f-category-note">
+                <strong>Recommended Use:</strong> Search on the main site first, then use this script to narrow down your results.
             </div>
 
             <div class="fs-section-line"></div>
@@ -1365,20 +1475,11 @@
                         <option value="">All Release Groups</option>
                     </select>
 
-                    <input type="text" id="f-search" class="fs-search-input" placeholder="Search anything..."
+                    <input type="text" id="f-search" class="fs-search-input" placeholder="Search Anything..."
                         style="${INPUT_STYLE} width:100%;">
                 </div>
 
                 <div class="fs-toolbar-right">
-                    <select id="f-pagelimit" style="${INPUT_STYLE} width:100px;">
-                        <option value="all">All Pages</option>
-                        <option value="5">5 Pages</option>
-                        <option value="10">10 Pages</option>
-                        <option value="20">20 Pages</option>
-                        <option value="50">50 Pages</option>
-                        <option value="100">100 Pages</option>
-                    </select>
-
                     <button id="f-stop-loading"
                         style="display:none; background:transparent; color:#f59e0b;
                                border:1px solid rgba(245,158,11,0.35);
@@ -1388,9 +1489,9 @@
                     </button>
 
                     <button id="f-loadall"
-                        style="background:linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%);
+                        style="background:linear-gradient(180deg, ${SEARCH_TOP} 0%, ${SEARCH_BOTTOM} 100%);
                                color:#ffffff;
-                               border:1px solid ${SEARCH_GREEN_BORDER};
+                               border:1px solid ${SEARCH_BORDER};
                                border-radius:8px; padding:5px 16px; cursor:pointer; font-size:13px;
                                font-weight:800; height:30px; box-sizing:border-box; transition:all 0.2s ease;
                                white-space:nowrap;
@@ -1404,9 +1505,9 @@
                                    1px 1px rgba(0,0,0,0.75);
                                box-shadow:
                                    inset 0 1px 0 rgba(255,255,255,0.14),
-                                   0 0 0 1px rgba(20,83,45,0.5),
+                                   0 0 0 1px rgba(109,92,255,0.28),
                                    0 8px 18px rgba(0,0,0,0.24),
-                                   0 0 12px ${SEARCH_GREEN_GLOW};">
+                                   0 0 12px ${SEARCH_GLOW};">
                         Search
                     </button>
 
@@ -1429,7 +1530,7 @@
 
             <div style="margin-top:4px; margin-bottom:12px;">
                 <div id="f-search-status"
-                    style="display:none; color:${SEARCH_STATUS_GREEN}; font-size:12px; font-weight:700; letter-spacing:0.2px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                    style="display:none; color:${SEARCH_STATUS}; font-size:12px; font-weight:700; letter-spacing:0.2px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
             </div>
 
             <div id="f-progress-wrap" style="display:none; margin-top:6px;">
@@ -1443,10 +1544,10 @@
 
         bar.addEventListener('mouseover', e => {
             if (e.target.id === 'f-loadall') {
-                e.target.style.background = `linear-gradient(180deg, ${SEARCH_GREEN_HOVER_TOP} 0%, ${SEARCH_GREEN_HOVER_BOTTOM} 100%)`;
+                e.target.style.background = `linear-gradient(180deg, ${SEARCH_HOVER_TOP} 0%, ${SEARCH_HOVER_BOTTOM} 100%)`;
                 e.target.style.transform = 'translateY(-1px)';
                 e.target.style.boxShadow =
-                    'inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(21,128,61,0.60), 0 10px 20px rgba(0,0,0,0.28), 0 0 16px rgba(34,197,94,0.24)';
+                    'inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(109,92,255,0.48), 0 10px 20px rgba(0,0,0,0.28), 0 0 16px rgba(109,92,255,0.24)';
             }
             if (e.target.id === 'f-stop-loading') {
                 e.target.style.background = 'rgba(245,158,11,0.12)';
@@ -1456,17 +1557,21 @@
                 e.target.style.background = 'rgba(224,108,117,0.12)';
                 e.target.style.borderColor = 'rgba(224,108,117,0.6)';
             }
+            if (e.target.id === 'f-nav-back' || e.target.id === 'f-nav-forward') {
+                e.target.style.background = 'rgba(109,92,255,0.12)';
+                e.target.style.borderColor = 'rgba(109,92,255,0.55)';
+            }
         });
 
         bar.addEventListener('mouseout', e => {
             if (e.target.id === 'f-loadall') {
-                e.target.style.background = `linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%)`;
+                e.target.style.background = `linear-gradient(180deg, ${SEARCH_TOP} 0%, ${SEARCH_BOTTOM} 100%)`;
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow =
                     `inset 0 1px 0 rgba(255,255,255,0.14),
-                     0 0 0 1px rgba(20,83,45,0.5),
+                     0 0 0 1px rgba(109,92,255,0.28),
                      0 8px 18px rgba(0,0,0,0.24),
-                     0 0 12px ${SEARCH_GREEN_GLOW}`;
+                     0 0 12px ${SEARCH_GLOW}`;
             }
             if (e.target.id === 'f-stop-loading') {
                 e.target.style.background = 'transparent';
@@ -1475,6 +1580,10 @@
             if (e.target.id === 'f-clear') {
                 e.target.style.background = 'transparent';
                 e.target.style.borderColor = 'rgba(224,108,117,0.35)';
+            }
+            if (e.target.id === 'f-nav-back' || e.target.id === 'f-nav-forward') {
+                e.target.style.background = 'transparent';
+                e.target.style.borderColor = 'rgba(255,255,255,0.22)';
             }
         });
 
@@ -1496,7 +1605,7 @@
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 indexExistingItems(rootContainer);
-                queueUIRefresh(rootContainer);
+                scheduleRefresh(rootContainer);
             }, 100);
         });
 
@@ -1510,7 +1619,8 @@
         rootContainer = container;
         resultsGrid = getActiveResultsGrid(container);
         baseListingUrl = getBaseListingUrl();
-        nextPageToLoad = 2;
+
+        if (!resultsGrid || !resultsGrid.parentNode) return;
 
         injectStyles();
         captureNativePagination();
@@ -1528,6 +1638,8 @@
 
         bar.querySelector('#f-clear').addEventListener('click', () => clearFilters(container));
         bar.querySelector('#f-stop-loading').addEventListener('click', () => stopLoading());
+        bar.querySelector('#f-nav-back').addEventListener('click', () => window.history.back());
+        bar.querySelector('#f-nav-forward').addEventListener('click', () => window.history.forward());
 
         bar.querySelector('#f-loadall').addEventListener('click', async function () {
             if (clearInProgress || isStoppingNow) return;
@@ -1544,7 +1656,6 @@
             isLoadingPages = true;
             isStoppingNow = false;
             baseListingUrl = getBaseListingUrl();
-            nextPageToLoad = 2;
             resultsGrid = getActiveResultsGrid(container);
 
             applyFilters(container);
@@ -1567,7 +1678,12 @@
 
         bar.querySelector('#f-category').addEventListener('change', function () {
             const targetUrl = this.value;
-            if (targetUrl && window.location.href.replace(/\/+$/, '/') !== targetUrl.replace(/\/+$/, '/')) {
+            if (!targetUrl) return;
+
+            const here = window.location.href.replace(/\/+$/, '/');
+            const there = targetUrl.replace(/\/+$/, '/');
+
+            if (here !== there) {
                 window.location.href = targetUrl;
             }
         });
@@ -1584,8 +1700,13 @@
 
     function waitForContainer() {
         const container = findContainer();
-        if (container) init(container);
-        else setTimeout(waitForContainer, 400);
+        const grid = container ? findResultsGrid(container) : null;
+
+        if (container && grid) {
+            init(container);
+        } else {
+            setTimeout(waitForContainer, 400);
+        }
     }
 
     waitForContainer();
