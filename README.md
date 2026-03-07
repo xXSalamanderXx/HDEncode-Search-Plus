@@ -1,147 +1,314 @@
-# HDEncode Filter Suite
+# HD-Encode Search+
 
-![Version](https://img.shields.io/badge/version-1.3-00e5ff?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-![Tampermonkey](https://img.shields.io/badge/Tampermonkey-required-orange?style=flat-square)
-![Domains](https://img.shields.io/badge/works%20on-hdencode.org%20%7C%20.com%20%7C%20.ro-blue?style=flat-square)
+[![HDEncode-Search-Plus.png](https://i.postimg.cc/26kM6TRR/HDEncode-Search-Plus.png)](https://postimg.cc/kVHfYQgf)
 
-![HDEncode Filter Suite](https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/screenshot.png)
+A heavily expanded and reworked HDEncode userscript focused on faster browsing, smarter search, safer controls, cleaner UI, and direct page-navigation shortcuts.
 
-HDEncode is a great source for releases of all kinds, movies, TV shows, TV packs. The site has filters, but I kept missing specific options. I mainly use it to track down specific TV show releases and wanted to combine things like release group, Dolby Vision and resolution in one go. Doing that manually meant scrolling through pages every single time. This script adds the extra filter options I was missing, directly above the release grid.
+Originally forked from: [mikeymuis/hdencode-filter-suite](https://github.com/mikeymuis/hdencode-filter-suite)
 
 ---
 
-## Features
+## What’s new in this version:
 
-**Filtering**
-- Dolby Vision & HDR: quickly isolate releases by HDR format
-- Resolution: filter by 2160p, 1080p or 720p
-- Content type: separate Movies, TV Shows and TV Packs
-- Minimum IMDb rating
-- File size: set a minimum and/or maximum in GB
-- Release group: dynamic dropdown populated from the current results, updates as you filter
+### Added / reworked features
 
-**Search & navigation**
-- Free-text search across all visible release info
-- Multi-page loading: load 5, 10, 20, 50, 100 or all pages in one click, with a live progress bar
+- **Dedicated category page navigation**
+  - Movies
+  - TV Shows
+  - TV Packs
+  - Top Downloads
+  - 4K UHD
 
-**Quality of life**
-- Persistent filters: settings are saved to your browser's local storage and restored when you return. No data is sent anywhere.
-- No results feedback: clear message when your filters return zero results, with your selection preserved
-- Active filter highlights: a subtle cyan border shows which filters are currently active
-- Quick links: click the "🔗 Links" button on any release to instantly fetch and display the download links without leaving the page. Hosters are shown with a colored indicator and their full name. Copy individual links or all links for a hoster at once with a single click.
+- **Improved multi-page search flow**
+  - Resets searches back to page 1 first
+  - Loads results progressively while scanning more pages
+  - Better duplicate prevention
+  - Better status text during scanning
+
+- **Safer Stop and Clear behavior**
+  - Stop safely aborts active searches
+  - Clear detects when a search is still running
+  - Clear waits for Stop to finish before resetting filters
+  - Helps prevent freezing, slowdown, and tab crashes during active page loading
+
+- **Smarter text matching**
+  - Case-insensitive matching
+  - Accent normalization
+  - Better handling for dots, dashes, spaces, and other separators
+  - More forgiving matching for inconsistent release naming
+
+- **Custom pagination under the toolbar**
+  - Native pagination is hidden
+  - A cleaner custom pager is shown beneath the script controls
+
+- **Improved toolbar layout**
+  - Better wrapping
+  - Better visibility on sidebar-heavy layouts
+  - Search box stays visible more reliably
+
+- **Rounded result cards with green glow**
+  - Rounded corners
+  - Green outer glow
+  - Improved matched-result highlighting
+  - Cleaner hover feel
+
+- **Better empty-state messaging**
+  - Shows a visible no-results message in the results area
+
+- **Dynamic release-group handling**
+  - Group list updates from visible results
+  - Works better as filters change
+
+- **Updated labels**
+  - `All groups` → `All Release Groups`
+  - `All resolutions` → `All Resolutions`
+  - `All pages` → `All Pages`
+
+- **Quick links improvements**
+  - Host labels cleaned up
+  - Copy individual links
+  - Copy all links per host
+  - Inline access without opening each detail page
 
 ---
+## Advanced Filtering and Sorting
 
-## Example
-
-Want only 2160p Dolby Vision movies with an IMDb rating of 8 or higher and under 50 GB? Check Dolby Vision, select 2160p, set Min rating to 8, Max GB to 50 and select Movies. Hit Load pages to pull in more results and let the filters do the rest.
-
----
-
-## Installation
-
-### Requirements
-
-- [Tampermonkey](https://www.tampermonkey.net/) browser extension (Chrome, Firefox, Edge, Safari)
-
-The script is fully open-source so you can read every line of code before installing.
-
-### Install
-
-1. Make sure Tampermonkey is installed and enabled in your browser
-2. Click the link below and Tampermonkey will detect it automatically:
-
-   **[Install HDEncode Filter Suite](https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js)**
-
-3. Click **Install** in the Tampermonkey dialog
-4. Navigate to [HDEncode.org](https://hdencode.org) and the filter bar will appear automatically above the release grid
-
-Updates are delivered automatically via Tampermonkey whenever a new version is released.
-
----
-
-## Usage
-
-The filter bar appears at the top of the release grid on any HDEncode page.
-
-### Row 1: Quality & content filters
+### Row 1: Main filters and section navigation
 
 | Control | Description |
 |---|---|
 | Dolby Vision | Show only Dolby Vision releases |
 | HDR | Show only HDR releases |
-| All resolutions | Filter by 2160p, 1080p or 720p |
-| Min rating | Hide releases below this IMDb rating |
+| All Resolutions | Filter by 2160p, 1080p or 720p |
+| Minimum Rating | Hide releases below this IMDb rating |
 | Min GB / Max GB | Filter by file size |
-| All / Movies / TV Shows / TV Packs | Filter by content type |
+| Movies | Reload to the Movies page |
+| TV Shows | Reload to the TV Shows page |
+| TV Packs | Reload to the TV Packs page |
+| Top Downloads | Reload to the Top Downloads page |
+| 4K UHD | Reload to the 2160p quality page |
 
-### Row 2: Search, groups & loading
+### Row 2: Search, groups, loading and reset
 
 | Control | Description |
 |---|---|
-| All groups | Filter by release group, populated dynamically from current results |
-| Search anything | Free-text search across all release info |
-| All pages | Choose how many additional pages to load |
-| ↓ Load pages | Fetch additional pages into the current view with a live progress bar |
-| ✕ Clear | Reset all filters and restore the full list |
-
-### Tips
-
-- Active filters are highlighted with a cyan border so you always know what's active
-- The release group dropdown only shows groups that match your other active filters
-- If a selected release group returns no results after changing other filters, your group selection is preserved. You'll see a red "No results" message rather than silently switching back to "All groups"
-- Multi-page loading fetches pages sequentially with a small delay between requests, lightweight and respectful to the server
-- Filter settings are saved in your browser's local storage automatically and restored when you return. Nothing is collected or shared.
+| All Release Groups | Filter by release group, populated dynamically from current visible results |
+| Search anything... | Free-text search across release info |
+| All Pages | Choose how many pages to scan |
+| Search | Start multi-page search/loading |
+| Stop Page Loading | Safely abort an active search |
+| Clear | Safely reset filters, stopping active searches first when needed |
 
 ---
 
-## Compatibility
+## Search behavior
 
-Tested on Chrome and Firefox with Tampermonkey. Should work with any Greasemonkey-compatible extension.
+The search system is designed to be more forgiving than plain text matching.
 
-Works on all HDEncode pages including category pages, search results and tag pages. Supports all three official domains: hdencode.org, hdencode.com and hdencode.ro.
+It can handle:
+
+- dots instead of spaces
+- dashes instead of spaces
+- mixed separators
+- compacted words
+- accent differences
+- case differences
+- inconsistent release formatting across pages
+
+That means searches often still match even when a release title is formatted differently than what you typed.
+
+Examples it is better at handling:
+
+- `Movie.Name.2025`
+- `Movie-Name-2025`
+- `Movie Name 2025`
+
+---
+
+## Original base features
+
+The original project introduced the core HDEncode filtering workflow that this version was built on and later expanded.
+
+### Core filters
+
+| Control | Description |
+|---|---|
+| Dolby Vision | Show only Dolby Vision releases |
+| HDR | Show only HDR releases |
+| All Resolutions | Filter by 2160p, 1080p or 720p |
+| Minimum Rating | Hide releases below this IMDb rating |
+| Min GB / Max GB | Filter by file size |
+| Release Group | Filter by release group |
+
+### Search and loading
+
+| Control | Description |
+|---|---|
+| Search anything | Free-text search across release info |
+| All Pages | Choose how many additional pages to scan |
+| Search | Fetch more pages into the current view |
+| Clear | Reset filters and restore the list |
+
+### Quick links
+
+- Inline `🔗 Links` button on each release
+- View host links without opening the release page
+- Copy links to clipboard directly
+
+---
+
+
+## Install
+
+### One-click install
+
+If you already have a userscript manager installed, click below:
+
+**[Install HD-Encode Search+](https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js)**
+
+Most userscript managers will detect the raw `.user.js` file automatically and open an install prompt.
+
+### Supported userscript managers
+
+This script should work with most userscript extensions, including:
+
+- **Tampermonkey**
+- **Violentmonkey**
+- **Greasemonkey**
+- **FireMonkey**
+- Other Greasemonkey-compatible managers
+
+### Tampermonkey install
+1. Install the Tampermonkey extension.
+2. Open the install link above.
+3. Tampermonkey should detect the script automatically.
+4. Click **Install**.
+5. Open HDEncode and refresh the page if needed.
+
+### Violentmonkey install
+1. Install the Violentmonkey extension.
+2. Open the install link above.
+3. Violentmonkey should detect the script automatically.
+4. Confirm installation.
+5. Refresh HDEncode if needed.
+
+### Greasemonkey / other managers
+1. Install your preferred userscript manager.
+2. Open the raw install link above.
+3. If the manager detects `.user.js` automatically, approve the install.
+4. If it does not, create a new script manually and paste in the script contents.
+5. Save and refresh HDEncode.
+
+---
+
+## Supported sites
+
+Works on:
+
+- `hdencode.org`
+- `www.hdencode.org`
+- `hdencode.com`
+- `www.hdencode.com`
+- `hdencode.ro`
+- `www.hdencode.ro`
+
+Supports homepage listings, tag pages, quality pages, search pages, and similar listing views.
+
+---
+
+## Direct page targets
+
+The category selector loads these site pages directly:
+
+- **Movies** → `https://hdencode.org/tag/movies/`
+- **TV Shows** → `https://hdencode.org/tag/tv-shows/`
+- **TV Packs** → `https://hdencode.org/tag/tv-packs/`
+- **Top Downloads** → `https://hdencode.org/top-downloads/`
+- **4K UHD** → `https://hdencode.org/quality/2160p/`
+
+---
+
+## Persistence
+
+Most filters are saved locally in your browser and restored automatically later.
+
+Saved locally:
+- Dolby Vision
+- HDR
+- Resolution
+- Rating
+- Size limits
+- Release group
+- Search text
+
+Not treated as a saved local filter:
+- Category page selector, because it works as page navigation
+
+Nothing is uploaded or shared.
+
+---
+
+## Notes on stability
+
+This version includes extra protection around long searches and reset actions.
+
+Improvements include:
+- abort protection for active loading
+- delayed clear-after-stop handling
+- safer observer timing
+- fewer UI collisions during large result updates
+
+These changes are aimed at reducing freezes and slowdown during aggressive multi-page searching.
+
+---
+
+## Credit
+
+This project was originally based on the idea and codebase from:
+
+[mikeymuis/hdencode-filter-suite](https://github.com/mikeymuis/hdencode-filter-suite)
+
+This fork has since been heavily reworked and expanded with substantial UI, search, navigation, and stability changes.
 
 ---
 
 ## Contributing
 
-Bug reports and suggestions are welcome via [GitHub Issues](https://github.com/mikeymuis/hdencode-filter-suite/issues). I'm not a developer myself, this script was built with AI assistance, so I can't promise a quick turnaround but I read everything and will do my best.
+Bug reports and suggestions are welcome through GitHub Issues.
 
----
-
-## Support the project
-
-This project takes time to maintain and keep up to date. If it saves you time and you'd like to say thanks, a small donation is always appreciated!
-
-[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?logo=paypal&logoColor=white)](https://paypal.me/mikeymuis)
+Helpful info to include:
+- browser
+- userscript manager
+- page URL
+- what you clicked
+- whether Search, Stop, or Clear was active
+- whether the issue happened on homepage, tag page, or quality page
 
 ---
 
 ## Changelog
 
-### v1.3
-- Download link panel now shows hoster names in full (e.g. "rg" → "Rapidgator") with a colored indicator per hoster
-- Added "Copy all" button per hoster to copy all parts in one click, useful for multi-part releases
-- Copy individual links still available per link
-
-### v1.2
-- Fixed release group dropdown showing incorrect values after the quick links button was added
-- Added support for hdencode.com and hdencode.ro in addition to hdencode.org
-
-### v1.1
-- Quick links: click "🔗 Links" on any release to fetch and display download links directly on the page, no need to navigate to the detail page
-- Copy any link to clipboard with a single click
-
 ### v1.0
-- Initial release
-- Filtering by Dolby Vision, HDR, resolution, content type, IMDb rating, file size and release group
-- Free-text search
-- Multi-page loading with live progress bar
-- Persistent filters via local storage
+- Forked from the original HDEncode filter suite base
+- Heavily reworked and expanded functionality
+- Added direct page-navigation selector for Movies, TV Shows, TV Packs, Top Downloads, and 4K UHD
+- Added improved multi-page search flow
+- Added safer Stop behavior
+- Added safer Clear behavior that stops active searches first
+- Added better search normalization for dots, dashes, spacing, and accent differences
+- Added custom pagination under the toolbar
+- Added rounded result cards with green glow styling
+- Added improved empty-state messaging
+- Added more stable toolbar layout and search box visibility fixes
+- Kept and expanded inline quick links functionality
+- Kept persistent browser-side filter saving
 
 ---
 
 ## License
 
+
 [MIT License](LICENSE) - free to use, modify and distribute.
+
+Special Thanks To The Original Project For Inspiring This Fork:
+https://github.com/mikeymuis/hdencode-filter-suite
