@@ -2,7 +2,7 @@
 
 [![HDEncode-Search-Plus.png](https://i.postimg.cc/LhFKRbfz/HDEncode-Search-Plus.png)](https://postimg.cc/p5C1JksT)
 
-#### Advanced HDEncode Userscript Focused on Faster Browsing, Smarter Search, Safer Controls, Cleaner UI, and Direct Page-Navigation Shortcuts.
+#### Advanced HDEncode Userscript Bringing A Smarter Search, Advanced Search Result Filters, and Direct Page-Navigation Shortcuts.
 
 ---
 
