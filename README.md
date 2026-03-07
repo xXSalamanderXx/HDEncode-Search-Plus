@@ -305,10 +305,25 @@ Helpful info to include:
 
 ---
 
-## License
+## Disclaimer
 
+This repository is provided for general educational and informational use only.
 
-[MIT License](LICENSE) - free to use, modify and distribute.
+By accessing, using, modifying, or distributing this repository, you agree that:
+
+- **Use at Your Own Risk:** You are solely responsible for how you use anything provided in this repository.
+- **No Guarantees:** The software, documentation, and related materials are provided **"as is"**, without warranty of any kind, express or implied.
+- **No Liability:** The authors, maintainers, and contributors are not liable for any claims, damages, losses, or other liabilities arising from the use of this project.
+- **Legal Compliance:** You are responsible for making sure your use of this project complies with any laws, rules, or policies that apply to you.
+- **Not Legal Advice:** Nothing in this repository or its documentation should be considered legal advice.
+
+---
+
+## License 📄
+
+Licensed under the [MIT License](LICENSE)
+
+---
 
 Special Thanks To The Original Project For Inspiring This Fork:
 https://github.com/mikeymuis/hdencode-filter-suite
