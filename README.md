@@ -136,7 +136,7 @@ Examples it is better at handling:
 | Control | Description |
 |---|---|
 | Search All Pages Automatically | Pages are scanned in the background and results are displayed dynamically |
-| Stop Page Scanning | Stop background page scanning when your happy with the results |
+| Stop Page Scanning | Stop background page scanning when you're happy with the results |
 | Clear | Clear filters and reset to default, including default results
 
 ### 🔗 Quick Link Access
