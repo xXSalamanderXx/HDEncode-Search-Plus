@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0.1
+// @version      1.0.2
 // @description  Filtering, live custom search, safer clear handling, custom pagination, category switching, quick links, and styled UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
 // @supportURL   https://github.com/xXSalamanderXx/HDEncode-Search-Plus/issues/
-// @updateURL    https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js
-// @downloadURL  https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js
+// @updateURL    https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/HDEncode-Search-Plus.user.js
+// @downloadURL  https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/HDEncode-Search-Plus.user.js
 // @match        *://hdencode.org/*
 // @match        *://www.hdencode.org/*
 // @match        *://hdencode.com/*
@@ -465,7 +465,7 @@
         if (!emptyState) {
             emptyState = document.createElement('div');
             emptyState.id = 'fs-empty-state';
-            emptyState.textContent = 'Press Clear To Return Normal Results or Search In The Custom Search';
+            emptyState.textContent = 'No Results: Press Clear To Reset Search Filters or Modify Your Current Filters';
             itemGrid.parentNode.insertBefore(emptyState, itemGrid);
         }
 
