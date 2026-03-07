@@ -100,15 +100,15 @@ A heavily expanded and reworked HDEncode userscript focused on faster browsing, 
 
 The search system is designed to be more forgiving than plain text matching.
 
-####It can handle:
+### It Can Handle:
 
-- dots instead of spaces
-- dashes instead of spaces
-- mixed separators
-- compacted words
-- accent differences
-- case differences
-- inconsistent release formatting across pages
+- Dots instead of spaces
+- Dashes instead of spaces
+- Mixed separators
+- Compacted words
+- Accent differences
+- Case differences
+- Inconsistent release formatting across pages
 
 That means searches often still match even when a release title is formatted differently than what you typed.
 
@@ -151,10 +151,10 @@ Examples it is better at handling:
 ### 💪 Stability
 
 Improvements include:
-- abort protection for active loading
-- delayed clear-after-stop handling
-- safer observer timing
-- fewer UI collisions during large result updates
+- Abort protection for active loading
+- Delayed clear-after-stop handling
+- Safer observer timing
+- Fewer UI collisions during large result updates
 
 These changes are aimed at reducing freezes and slowdown during aggressive multi-page searching.
 
