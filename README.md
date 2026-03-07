@@ -6,67 +6,8 @@
 
 ---
 
-# Features
+## 🔎🔥 Highlights: 
 
-- **Dedicated category page navigation**
-  - Movies
-  - TV Shows
-  - TV Packs
-  - Top Downloads
-  - 4K UHD
-
-- **Improved multi-page search flow**
-  - Resets searches back to page 1 first
-  - Loads results progressively while scanning more pages
-  - Better duplicate prevention
-  - Better status text during scanning
-
-- **Safer Stop and Clear behavior**
-  - Stop safely aborts active searches
-  - Clear detects when a search is still running
-  - Clear waits for Stop to finish before resetting filters
-  - Helps prevent freezing, slowdown, and tab crashes during active page loading
-
-- **Smarter text matching**
-  - Case-insensitive matching
-  - Accent normalization
-  - Better handling for dots, dashes, spaces, and other separators
-  - More forgiving matching for inconsistent release naming
-
-- **Custom pagination under the toolbar**
-  - Native pagination is hidden
-  - A cleaner custom pager is shown beneath the script controls
-
-- **Improved toolbar layout**
-  - Better wrapping
-  - Better visibility on sidebar-heavy layouts
-  - Search box stays visible more reliably
-
-- **Rounded result cards with green glow**
-  - Rounded corners
-  - Green outer glow
-  - Improved matched-result highlighting
-  - Cleaner hover feel
-
-- **Better empty-state messaging**
-  - Shows a visible no-results message in the results area
-
-- **Dynamic release-group handling**
-  - Group list updates from visible results
-  - Works better as filters change
-
-- **Updated labels**
-  - `All groups` → `All Release Groups`
-  - `All resolutions` → `All Resolutions`
-  - `All pages` → `All Pages`
-
-- **Quick links improvements**
-  - Host labels cleaned up
-  - Copy individual links
-  - Copy all links per host
-  - Inline access without opening each detail page
-
----
 ### 🗃️ Advanced Filtering and Sorting
 
 #### Row 1: Main filters and section navigation
@@ -145,17 +86,28 @@ Examples it is better at handling:
 - View host links without opening the release page
 - Copy links to clipboard directly
 
+### 🔤 Smart Text Matching
+
+- Case-insensitive matching
+- Accent normalization
+- Better handling for dots, dashes, spaces, and other separators
+- More forgiving matching for inconsistent release naming
+
+### 📕 Custom Pagination
+- Native pagination is hidden
+- A cleaner custom pagination that dynamically shows filtered results, with live changes depending on your filters.
+- Modern intuitive page number buttons
+
 ---
 
 ### 💪 Stability
 
-Improvements include:
+#### Stability included:
+
 - Abort protection for active loading
 - Delayed clear-after-stop handling
 - Safer observer timing
 - Fewer UI collisions during large result updates
-
-These changes are aimed at reducing freezes and slowdown during aggressive multi-page searching.
 
 ---
 
