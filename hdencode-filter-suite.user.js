@@ -25,15 +25,15 @@
     const SCRIPT_ID = 'hdencode-filter-suite';
 
     const ACCENT = '#E50914';
-    const ACCENT_BG = 'rgba(229,9,20,0.08)';
-    const ACCENT_BORDER = 'rgba(229,9,20,0.35)';
+    const ACCENT_BG = 'rgba(229, 9, 20, 0.08)';
+    const ACCENT_BORDER = 'rgba(229, 9, 20, 0.35)';
 
     const SEARCH_GREEN_TOP = '#166534';
     const SEARCH_GREEN_BOTTOM = '#0f5132';
     const SEARCH_GREEN_HOVER_TOP = '#1f7a4d';
     const SEARCH_GREEN_HOVER_BOTTOM = '#14532d';
-    const SEARCH_GREEN_BORDER = 'rgba(34,197,94,0.60)';
-    const SEARCH_GREEN_GLOW = 'rgba(34,197,94,0.22)';
+    const SEARCH_GREEN_BORDER = 'rgba(34, 197, 94, 0.60)';
+    const SEARCH_GREEN_GLOW = 'rgba(34, 197, 94, 0.22)';
     const SEARCH_STATUS_GREEN = '#22c55e';
 
     let isLoadingPages = false;
@@ -66,29 +66,81 @@
                 position: relative;
                 z-index: 5;
                 clear: both;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+                overflow: visible;
+            }
+
+            #${SCRIPT_ID}-bar .fs-toolbar-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                min-width: 0;
+                width: 100%;
+            }
+
+            #${SCRIPT_ID}-bar .fs-toolbar-left {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                min-width: 0;
+                flex: 1 1 420px;
+            }
+
+            #${SCRIPT_ID}-bar .fs-toolbar-right {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                justify-content: flex-end;
+                min-width: 0;
+                flex: 1 1 280px;
+            }
+
+            #${SCRIPT_ID}-bar .fs-search-select {
+                flex: 0 1 180px;
+                min-width: 165px;
+            }
+
+            #${SCRIPT_ID}-bar .fs-search-input {
+                flex: 1 1 340px;
+                min-width: 240px;
+                max-width: 100%;
+            }
+
+            #${SCRIPT_ID}-bar .fs-section-line {
+                border-top: 1px solid #21262d;
+                margin: 10px 0;
+            }
+
+            #${SCRIPT_ID}-bar .fs-results-gap {
+                margin-bottom: 28px;
             }
 
             #f-progress-bar.fs-active {
                 width: 100% !important;
                 background: linear-gradient(
                     90deg,
-                    rgba(229,9,20,0.08) 0%,
-                    rgba(229,9,20,0.24) 18%,
-                    rgba(229,9,20,0.55) 36%,
+                    rgba(229, 9, 20, 0.08) 0%,
+                    rgba(229, 9, 20, 0.24) 18%,
+                    rgba(229, 9, 20, 0.55) 36%,
                     #E50914 50%,
-                    rgba(229,9,20,0.55) 64%,
-                    rgba(229,9,20,0.24) 82%,
-                    rgba(229,9,20,0.08) 100%
+                    rgba(229, 9, 20, 0.55) 64%,
+                    rgba(229, 9, 20, 0.24) 82%,
+                    rgba(229, 9, 20, 0.08) 100%
                 );
                 background-size: 220% 100%;
                 animation: fs-activity-scan 1.15s linear infinite;
             }
 
             .fs-search-match {
-                outline: 1px solid rgba(34,197,94,0.55);
+                outline: 1px solid rgba(34, 197, 94, 0.55);
                 box-shadow:
-                    0 0 0 1px rgba(34,197,94,0.22) inset,
-                    0 0 16px rgba(34,197,94,0.15);
+                    0 0 0 1px rgba(34, 197, 94, 0.22) inset,
+                    0 0 16px rgba(34, 197, 94, 0.15);
             }
 
             .fs-hide-pagination {
@@ -166,6 +218,20 @@
                 font-size: 14px;
                 line-height: 1.5;
                 text-align: center;
+            }
+
+            @media (max-width: 980px) {
+                #${SCRIPT_ID}-bar .fs-toolbar-left,
+                #${SCRIPT_ID}-bar .fs-toolbar-right {
+                    flex: 1 1 100%;
+                    justify-content: flex-start;
+                }
+
+                #${SCRIPT_ID}-bar .fs-search-select,
+                #${SCRIPT_ID}-bar .fs-search-input {
+                    flex: 1 1 100%;
+                    min-width: 100%;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -311,28 +377,28 @@
     }
 
     function getRating(item) {
-        const match = item.innerText.match(/Rating\\s*:\\s*(\\d+\\.\\d+)\\/10/i);
+        const match = item.innerText.match(/Rating\s*:\s*(\d+\.\d+)\/10/i);
         return match ? parseFloat(match[1]) : 0;
     }
 
     function getSize(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const match = title.match(/–\\s*(\\d+(\\.\\d+)?)\\s*GB/i);
+        const match = title.match(/–\s*(\d+(\.\d+)?)\s*GB/i);
         return match ? parseFloat(match[1]) : null;
     }
 
     function getGroup(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const clean = title.replace(/\\s*–\\s*[\\d.]+\\s*(GB|MB)\\s*$/i, '').trim();
+        const clean = title.replace(/\s*–\s*[\d.]+\s*(GB|MB)\s*$/i, '').trim();
         const parts = clean.split('-');
         return parts.length > 1 ? parts.pop().trim() : '';
     }
 
     function getResolution(item) {
         for (const span of item.querySelectorAll('.calidad3')) {
-            if (span.innerText.match(/\\d{3,4}p/i)) return span.innerText.trim();
+            if (span.innerText.match(/\d{3,4}p/i)) return span.innerText.trim();
         }
         return '';
     }
@@ -422,7 +488,9 @@
             if (el.id === 'f-pagelimit') continue;
             data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         }
-        try { localStorage.setItem('hdencodeFilters', JSON.stringify(data)); } catch (_) {}
+        try {
+            localStorage.setItem('hdencodeFilters', JSON.stringify(data));
+        } catch (_) {}
     }
 
     function loadFilters() {
@@ -453,10 +521,12 @@
     function hideProgress(immediate = false) {
         const wrap = document.getElementById('f-progress-wrap');
         const bar = document.getElementById('f-progress-bar');
+
         const done = () => {
             if (wrap) wrap.style.display = 'none';
             if (bar) bar.classList.remove('fs-active');
         };
+
         if (immediate) done();
         else setTimeout(done, 350);
     }
@@ -607,7 +677,6 @@
         if (signal.aborted) return false;
 
         const doc = new DOMParser().parseFromString(html, 'text/html');
-
         const nativePager = findNativePaginationElement(doc);
         if (nativePager) nativePaginationHTML = nativePager.outerHTML;
 
@@ -837,18 +906,25 @@
             const unlockedDoc = new DOMParser().parseFromString(await postRes.text(), 'text/html');
 
             const HOST_NAMES = {
-                'rg': 'Rapidgator', 'rapidgator': 'Rapidgator',
-                'nf': 'Nitroflare', 'nitroflare': 'Nitroflare',
-                'ddl': 'DDL', 'mega': 'Mega', '1fichier': '1Fichier',
-                'ul': 'Uploadgig', 'uploadgig': 'Uploadgig',
-                'katfile': 'Katfile', 'filefox': 'Filefox',
+                rg: 'Rapidgator',
+                rapidgator: 'Rapidgator',
+                nf: 'Nitroflare',
+                nitroflare: 'Nitroflare',
+                ddl: 'DDL',
+                mega: 'Mega',
+                '1fichier': '1Fichier',
+                ul: 'Uploadgig',
+                uploadgig: 'Uploadgig',
+                katfile: 'Katfile',
+                filefox: 'Filefox',
             };
 
             const links = [];
             for (const blockquote of unlockedDoc.querySelectorAll('.content-protector-access-form blockquote')) {
                 const img = blockquote.previousElementSibling?.querySelector('img');
                 const raw = (img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link')
-                    .toLowerCase().trim();
+                    .toLowerCase()
+                    .trim();
                 const host = HOST_NAMES[raw] || raw.charAt(0).toUpperCase() + raw.slice(1);
 
                 for (const a of blockquote.querySelectorAll('a')) {
@@ -935,19 +1011,19 @@
                 }
 
                 const HOST_COLORS = {
-                    'Rapidgator': '#00b4d8',
-                    'Nitroflare': '#f59e0b',
-                    'Mega': '#e74c3c',
+                    Rapidgator: '#00b4d8',
+                    Nitroflare: '#f59e0b',
+                    Mega: '#e74c3c',
                     '1Fichier': '#8b5cf6',
-                    'Uploadgig': '#22c55e',
-                    'Katfile': '#ec4899',
-                    'Filefox': '#f97316',
-                    'DDL': '#8b949e',
+                    Uploadgig: '#22c55e',
+                    Katfile: '#ec4899',
+                    Filefox: '#f97316',
+                    DDL: '#8b949e',
                 };
 
                 panel.innerHTML = Object.entries(grouped).map(([host, urls]) => {
                     const color = HOST_COLORS[host] || '#8b949e';
-                    const allUrls = urls.join('\\n');
+                    const allUrls = urls.join('\n');
 
                     return `<div style="margin-bottom:8px;">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
@@ -1058,6 +1134,10 @@
             color: '#e6edf3',
             fontSize: '13px',
             boxShadow: '0 4px 20px rgba(229,9,20,0.15)',
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            overflow: 'visible'
         });
 
         bar.innerHTML = `
@@ -1065,50 +1145,58 @@
                 <strong style="color:${ACCENT}; font-size:14px; letter-spacing:0.5px;">⚡ ${SCRIPT_NAME}</strong>
             </div>
 
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="fs-toolbar-row">
+                <div class="fs-toolbar-left">
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
                         <input type="checkbox" id="f-dv" style="accent-color:${ACCENT};">
                         <span>Dolby Vision</span>
                     </label>
-                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+
+                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
                         <input type="checkbox" id="f-hdr" style="accent-color:${ACCENT};">
                         <span>HDR</span>
                     </label>
+
                     <select id="f-res" style="${INPUT_STYLE} width:145px;">
                         <option value="">All Resolutions</option>
                         <option value="2160p">2160p</option>
                         <option value="1080p">1080p</option>
                         <option value="720p">720p</option>
                     </select>
+
                     <input type="number" id="f-rating" placeholder="Minimum Rating" step="0.1" min="0" max="10"
                         style="${INPUT_STYLE} width:145px;">
+
                     <input type="number" id="f-minsize" placeholder="Min GB" min="0"
                         style="${INPUT_STYLE} width:88px;">
+
                     <input type="number" id="f-maxsize" placeholder="Max GB" min="0"
                         style="${INPUT_STYLE} width:88px;">
                 </div>
 
-                <select id="f-category" style="${INPUT_STYLE} width:110px;">
-                    <option value="">All</option>
-                    <option value="movies">Movies</option>
-                    <option value="tv-shows">TV Shows</option>
-                    <option value="tv-packs">TV Packs</option>
-                </select>
+                <div class="fs-toolbar-right">
+                    <select id="f-category" style="${INPUT_STYLE} width:110px;">
+                        <option value="">All</option>
+                        <option value="movies">Movies</option>
+                        <option value="tv-shows">TV Shows</option>
+                        <option value="tv-packs">TV Packs</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="border-top:1px solid #21262d; margin-bottom:10px;"></div>
+            <div class="fs-section-line"></div>
 
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <select id="f-group" style="${INPUT_STYLE} width:165px;">
+            <div class="fs-toolbar-row">
+                <div class="fs-toolbar-left">
+                    <select id="f-group" class="fs-search-select" style="${INPUT_STYLE} width:165px;">
                         <option value="">All Release Groups</option>
                     </select>
-                    <input type="text" id="f-search" placeholder="Search anything..."
-                        style="${INPUT_STYLE} width:240px;">
+
+                    <input type="text" id="f-search" class="fs-search-input" placeholder="Search anything..."
+                        style="${INPUT_STYLE} width:100%;">
                 </div>
 
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div class="fs-toolbar-right">
                     <select id="f-pagelimit" style="${INPUT_STYLE} width:100px;">
                         <option value="all">All Pages</option>
                         <option value="5">5 Pages</option>
@@ -1259,7 +1347,8 @@
         indexExistingItems(container);
 
         const bar = createBar();
-        resultsGrid.parentNode.insertBefore(bar, resultsGrid);
+        resultsGrid.insertAdjacentElement('beforebegin', bar);
+        resultsGrid.style.marginTop = '6px';
 
         ensureEmptyState(container);
         renderCustomPagination();
