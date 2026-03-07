@@ -6,8 +6,8 @@
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
 // @supportURL   https://github.com/xXSalamanderXx/HDEncode-Search-Plus/issues/
-// @updateURL    https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js
-// @downloadURL  https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js
+// @updateURL    https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js
+// @downloadURL  https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js
 // @match        *://hdencode.org/*
 // @match        *://www.hdencode.org/*
 // @match        *://hdencode.com/*
