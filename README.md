@@ -292,8 +292,3 @@ By accessing, using, modifying, or distributing this repository, you agree that:
 ## License 📄
 
 Licensed under the [MIT License](LICENSE)
-
----
-
-Special Thanks To The Original Project For Inspiring This Fork:
-https://github.com/mikeymuis/hdencode-filter-suite
