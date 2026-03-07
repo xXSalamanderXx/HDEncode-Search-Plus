@@ -135,10 +135,9 @@ Examples it is better at handling:
 
 | Control | Description |
 |---|---|
-| Search anything | Free-text search across release info |
-| All Pages | Choose how many additional pages to scan |
-| Search | Fetch more pages into the current view |
-| Clear | Reset filters and restore the list |
+| Search All Pages Automatically | Pages are scanned in the background and results are displayed dynamically |
+| Stop Page Scanning | Stop background page scanning when your happy with the results |
+| Clear | Clear filters and reset to default, including default results
 
 ### 🔗 Quick Link Access
 
