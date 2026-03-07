@@ -52,6 +52,8 @@
     let isStoppingNow = false;
     let uiRefreshQueued = false;
     let suppressObserverUntil = 0;
+    let pendingClearAfterStop = false;
+    let clearRetryTimer = null;
 
     const seenReleaseLinks = new Set();
     const linkCache = new Map();
@@ -432,14 +434,6 @@
         return '';
     }
 
-    function getCategory(item) {
-        const links = Array.from(item.querySelectorAll('.calidad4 a'));
-        const hrefs = links.map(a => a.href || a.getAttribute('href') || '');
-        if (hrefs.some(h => h.includes('tv-packs'))) return 'tv-packs';
-        if (hrefs.some(h => h.includes('tv-shows'))) return 'tv-shows';
-        return 'movies';
-    }
-
     function getItemKey(item) {
         return item.querySelector('h5 a')?.href ||
                item.querySelector('h5 a')?.textContent?.trim() ||
@@ -483,12 +477,28 @@
         }
     }
 
+    function syncCategorySelectToLocation() {
+        const select = document.getElementById('f-category');
+        if (!select) return;
+
+        const href = window.location.href.replace(/\/+$/, '/');
+        const options = [
+            'https://hdencode.org/tag/movies/',
+            'https://hdencode.org/tag/tv-shows/',
+            'https://hdencode.org/tag/tv-packs/',
+            'https://hdencode.org/top-downloads/',
+            'https://hdencode.org/quality/2160p/'
+        ];
+
+        const matched = options.find(url => href.startsWith(url));
+        select.value = matched || 'https://hdencode.org/tag/movies/';
+    }
+
     function getFilterValues() {
         return {
             onlyDV: document.getElementById('f-dv')?.checked || false,
             onlyHDR: document.getElementById('f-hdr')?.checked || false,
             res: document.getElementById('f-res')?.value || '',
-            category: document.getElementById('f-category')?.value || '',
             minRating: parseFloat(document.getElementById('f-rating')?.value) || 0,
             minSize: parseFloat(document.getElementById('f-minsize')?.value) || 0,
             maxSize: parseFloat(document.getElementById('f-maxsize')?.value) || Infinity,
@@ -501,7 +511,6 @@
         if (f.onlyDV && !hasDV(item)) return false;
         if (f.onlyHDR && !hasHDR(item)) return false;
         if (f.res && getResolution(item) !== f.res) return false;
-        if (f.category && getCategory(item) !== f.category) return false;
         if (getRating(item) < f.minRating) return false;
 
         const size = getSize(item);
@@ -514,7 +523,7 @@
     function saveFilters() {
         const data = {};
         for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-            if (el.id === 'f-pagelimit') continue;
+            if (el.id === 'f-pagelimit' || el.id === 'f-category') continue;
             data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         }
         try {
@@ -526,7 +535,7 @@
         try {
             const data = JSON.parse(localStorage.getItem('hdencodeFilters') || '{}');
             for (const [id, val] of Object.entries(data)) {
-                if (id === 'f-pagelimit') continue;
+                if (id === 'f-pagelimit' || id === 'f-category') continue;
                 const el = document.getElementById(id);
                 if (!el) continue;
                 if (el.type === 'checkbox') el.checked = val;
@@ -684,6 +693,7 @@
 
         const stopBtn = document.getElementById('f-stop-loading');
         const loadBtn = document.getElementById('f-loadall');
+
         if (stopBtn) {
             stopBtn.style.display = 'none';
             stopBtn.disabled = false;
@@ -694,13 +704,21 @@
     }
 
     function stopLoading() {
-        if (!isLoadingPages && !abortController) return;
+        if (!isLoadingPages && !abortController) {
+            if (pendingClearAfterStop && rootContainer) {
+                pendingClearAfterStop = false;
+                clearFilters(rootContainer);
+            }
+            return;
+        }
+
         if (isStoppingNow) return;
 
         const didAbort = abortActiveLoading('user-stop');
 
         const stopBtn = document.getElementById('f-stop-loading');
         const loadBtn = document.getElementById('f-loadall');
+
         if (stopBtn) stopBtn.disabled = true;
         if (loadBtn) loadBtn.disabled = true;
 
@@ -710,56 +728,98 @@
         if (!didAbort) {
             finishStopUI();
             queueUIRefresh(rootContainer);
+
+            if (pendingClearAfterStop && rootContainer) {
+                pendingClearAfterStop = false;
+                clearFilters(rootContainer);
+            }
         }
     }
 
     function clearFilters(container) {
         if (clearInProgress) return;
+
+        if (isLoadingPages || abortController || isStoppingNow) {
+            pendingClearAfterStop = true;
+            stopLoading();
+
+            clearTimeout(clearRetryTimer);
+            clearRetryTimer = setTimeout(function waitForStop() {
+                if (isLoadingPages || abortController || isStoppingNow) {
+                    clearRetryTimer = setTimeout(waitForStop, 60);
+                    return;
+                }
+
+                pendingClearAfterStop = false;
+                clearFilters(container);
+            }, 60);
+
+            return;
+        }
+
         clearInProgress = true;
         suppressObserverUntil = Date.now() + 1000;
 
         try {
             clearTimeout(refreshTimer);
+            clearTimeout(clearRetryTimer);
             pauseObserver();
 
-            abortActiveLoading('clear');
-
             for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-                if (el.id === 'f-pagelimit') el.value = 'all';
-                else if (el.type === 'checkbox') el.checked = false;
-                else el.value = '';
+                if (el.id === 'f-pagelimit') {
+                    el.value = 'all';
+                } else if (el.id === 'f-category') {
+                    continue;
+                } else if (el.type === 'checkbox') {
+                    el.checked = false;
+                } else {
+                    el.value = '';
+                }
             }
 
-            try { localStorage.removeItem('hdencodeFilters'); } catch (_) {}
+            try {
+                localStorage.removeItem('hdencodeFilters');
+            } catch (_) {}
+
+            syncCategorySelectToLocation();
 
             const stopBtn = document.getElementById('f-stop-loading');
             const loadBtn = document.getElementById('f-loadall');
+
             if (stopBtn) {
                 stopBtn.style.display = 'none';
                 stopBtn.disabled = false;
             }
-            if (loadBtn) loadBtn.disabled = false;
 
-            setStatus('');
-            const searchStatus = document.getElementById('f-search-status');
-            if (searchStatus) {
-                searchStatus.textContent = '';
-                searchStatus.style.display = 'none';
+            if (loadBtn) {
+                loadBtn.disabled = false;
             }
 
             abortController = null;
             isLoadingPages = false;
             isStoppingNow = false;
 
+            setStatus('');
+
+            const searchStatus = document.getElementById('f-search-status');
+            if (searchStatus) {
+                searchStatus.textContent = '';
+                searchStatus.style.display = 'none';
+            }
+
             applyFilters(container);
             styleVisibleResults(container);
             hideNativePagination();
             renderCustomPagination();
-            updateEmptyState(container, Array.from(container.querySelectorAll('.fit.item')).some(item => item.style.display !== 'none'));
+            updateEmptyState(
+                container,
+                Array.from(container.querySelectorAll('.fit.item')).some(item => item.style.display !== 'none')
+            );
         } finally {
             setTimeout(() => {
                 resumeObserver();
             }, 50);
+
             clearInProgress = false;
         }
     }
@@ -849,7 +909,7 @@
 
             loaded = 1;
 
-            let firstState = applyFilters(container);
+            const firstState = applyFilters(container);
             if (getFilterValues().search) {
                 setStatus(`${firstState.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
             } else {
@@ -963,6 +1023,15 @@
                         ? `${finalState.searchMatches} result(s) found`
                         : (loaded > 0 ? `${loaded} page(s) loaded` : 'No more pages to load'));
                 }
+            }
+
+            if (pendingClearAfterStop && !clearInProgress) {
+                setTimeout(() => {
+                    if (rootContainer && !isLoadingPages && !abortController && !isStoppingNow) {
+                        pendingClearAfterStop = false;
+                        clearFilters(rootContainer);
+                    }
+                }, 40);
             }
 
             setTimeout(() => {
@@ -1278,11 +1347,12 @@
                 </div>
 
                 <div class="fs-toolbar-right">
-                    <select id="f-category" style="${INPUT_STYLE} width:110px;">
-                        <option value="">All</option>
-                        <option value="movies">Movies</option>
-                        <option value="tv-shows">TV Shows</option>
-                        <option value="tv-packs">TV Packs</option>
+                    <select id="f-category" style="${INPUT_STYLE} width:150px;">
+                        <option value="https://hdencode.org/tag/movies/">Movies</option>
+                        <option value="https://hdencode.org/tag/tv-shows/">TV Shows</option>
+                        <option value="https://hdencode.org/tag/tv-packs/">TV Packs</option>
+                        <option value="https://hdencode.org/top-downloads/">Top Downloads</option>
+                        <option value="https://hdencode.org/quality/2160p/">4K UHD</option>
                     </select>
                 </div>
             </div>
@@ -1491,14 +1561,22 @@
         });
 
         for (const el of bar.querySelectorAll('input, select')) {
-            if (el.id === 'f-search') continue;
+            if (el.id === 'f-search' || el.id === 'f-category') continue;
             el.addEventListener('input', () => applyFilters(container));
         }
+
+        bar.querySelector('#f-category').addEventListener('change', function () {
+            const targetUrl = this.value;
+            if (targetUrl && window.location.href.replace(/\/+$/, '/') !== targetUrl.replace(/\/+$/, '/')) {
+                window.location.href = targetUrl;
+            }
+        });
 
         searchInput.addEventListener('input', () => applyFilters(container));
 
         buildGroupDropdown(container);
         loadFilters();
+        syncCategorySelectToLocation();
         applyFilters(container);
         injectLinkButtons(container);
         createObserver();
