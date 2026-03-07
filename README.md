@@ -286,25 +286,6 @@ Helpful info to include:
 
 ---
 
-## Changelog
-
-### v1.0
-- Forked from the original HDEncode filter suite base
-- Heavily reworked and expanded functionality
-- Added direct page-navigation selector for Movies, TV Shows, TV Packs, Top Downloads, and 4K UHD
-- Added improved multi-page search flow
-- Added safer Stop behavior
-- Added safer Clear behavior that stops active searches first
-- Added better search normalization for dots, dashes, spacing, and accent differences
-- Added custom pagination under the toolbar
-- Added rounded result cards with green glow styling
-- Added improved empty-state messaging
-- Added more stable toolbar layout and search box visibility fixes
-- Kept and expanded inline quick links functionality
-- Kept persistent browser-side filter saving
-
----
-
 ## Disclaimer
 
 This repository is provided for general educational and informational use only.
