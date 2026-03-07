@@ -164,7 +164,7 @@ The original project introduced the core HDEncode filtering workflow that this v
 
 If you already have a userscript manager installed, click below:
 
-**[Install HD-Encode Search+](https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/hdencode-filter-suite.user.js)**
+**[Install HD-Encode Search+](https://github.com/xXSalamanderXx/HDEncode-Search-Plus/raw/refs/heads/main/HDEncode-Search-Plus.user.js)**
 
 Most userscript managers will detect the raw `.user.js` file automatically and open an install prompt.
 
