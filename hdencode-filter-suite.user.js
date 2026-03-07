@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         HDEncode Filter Suite
+// @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.3
-// @description  A Tampermonkey userscript that adds powerful filtering, searching and multi-page loading to HDEncode.org
-// @author       mikeymuis
-// @homepage     https://github.com/mikeymuis/hdencode-filter-suite
-// @supportURL   https://github.com/mikeymuis/hdencode-filter-suite/issues
+// @version      1.0
+// @description  Filtering, live custom search, safer clear handling, custom pagination, empty-state messaging, and quick links for HDEncode.org
+// @author       xXSalamanderXx
+// @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
+// @supportURL   https://github.com/xXSalamanderXx/HDEncode-Search-Plus/issues/
 // @updateURL    https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js
 // @downloadURL  https://raw.githubusercontent.com/mikeymuis/hdencode-filter-suite/main/hdencode-filter-suite.user.js
 // @match        *://hdencode.org/*
@@ -21,13 +21,285 @@
 (function () {
     'use strict';
 
-    // ─── Script constants ─────────────────────────────────────────────────────
+    const SCRIPT_NAME = 'HD-Encode Search+';
+    const SCRIPT_ID = 'hdencode-filter-suite';
 
-    const SCRIPT_NAME    = 'HDEncode Filter Suite';
-    const SCRIPT_VERSION = '1.3';
-    const SCRIPT_ID      = 'hdencode-filter-suite';
+    const ACCENT = '#E50914';
+    const ACCENT_BG = 'rgba(229,9,20,0.08)';
+    const ACCENT_BORDER = 'rgba(229,9,20,0.35)';
 
-    // ─── Helpers: item data extraction ───────────────────────────────────────
+    const SEARCH_GREEN_TOP = '#166534';
+    const SEARCH_GREEN_BOTTOM = '#0f5132';
+    const SEARCH_GREEN_HOVER_TOP = '#1f7a4d';
+    const SEARCH_GREEN_HOVER_BOTTOM = '#14532d';
+    const SEARCH_GREEN_BORDER = 'rgba(34,197,94,0.60)';
+    const SEARCH_GREEN_GLOW = 'rgba(34,197,94,0.22)';
+    const SEARCH_STATUS_GREEN = '#22c55e';
+
+    let isLoadingPages = false;
+    let abortController = null;
+    let nextPageToLoad = 2;
+    let rootContainer = null;
+    let resultsGrid = null;
+    let observer = null;
+    let observerPaused = false;
+    let clearInProgress = false;
+    let nativePaginationHTML = '';
+    let refreshTimer = null;
+    let baseListingUrl = '';
+
+    const seenReleaseLinks = new Set();
+    const linkCache = new Map();
+
+    function injectStyles() {
+        if (document.getElementById(`${SCRIPT_ID}-styles`)) return;
+
+        const style = document.createElement('style');
+        style.id = `${SCRIPT_ID}-styles`;
+        style.textContent = `
+            @keyframes fs-activity-scan {
+                0%   { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+
+            #${SCRIPT_ID}-bar {
+                position: relative;
+                z-index: 5;
+                clear: both;
+            }
+
+            #f-progress-bar.fs-active {
+                width: 100% !important;
+                background: linear-gradient(
+                    90deg,
+                    rgba(229,9,20,0.08) 0%,
+                    rgba(229,9,20,0.24) 18%,
+                    rgba(229,9,20,0.55) 36%,
+                    #E50914 50%,
+                    rgba(229,9,20,0.55) 64%,
+                    rgba(229,9,20,0.24) 82%,
+                    rgba(229,9,20,0.08) 100%
+                );
+                background-size: 220% 100%;
+                animation: fs-activity-scan 1.15s linear infinite;
+            }
+
+            .fs-search-match {
+                outline: 1px solid rgba(34,197,94,0.55);
+                box-shadow:
+                    0 0 0 1px rgba(34,197,94,0.22) inset,
+                    0 0 16px rgba(34,197,94,0.15);
+            }
+
+            .fs-hide-pagination {
+                display: none !important;
+            }
+
+            #f-load-status,
+            #f-search-status {
+                min-height: 18px;
+            }
+
+            #f-custom-pagination {
+                margin-top: 18px;
+                padding-top: 16px;
+                border-top: 1px solid #21262d;
+            }
+
+            #f-custom-pagination .fs-pagination-wrap {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+            }
+
+            #f-custom-pagination a,
+            #f-custom-pagination span {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 34px;
+                height: 32px;
+                padding: 0 10px;
+                border-radius: 8px;
+                font-size: 13px;
+                line-height: 1;
+                text-decoration: none;
+                box-sizing: border-box;
+                white-space: nowrap;
+            }
+
+            #f-custom-pagination a {
+                color: #e6edf3;
+                background: #161b22;
+                border: 1px solid rgba(255,255,255,0.10);
+                transition: all 0.18s ease;
+            }
+
+            #f-custom-pagination a:hover {
+                border-color: rgba(34,197,94,0.45);
+                box-shadow: 0 0 0 1px rgba(34,197,94,0.12) inset;
+                transform: translateY(-1px);
+            }
+
+            #f-custom-pagination .current,
+            #f-custom-pagination .active {
+                color: #ffffff;
+                background: linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%);
+                border: 1px solid ${SEARCH_GREEN_BORDER};
+                font-weight: 700;
+                text-shadow:
+                    -1px 0 rgba(0,0,0,0.98),
+                    0 1px rgba(0,0,0,0.98),
+                    1px 0 rgba(0,0,0,0.98),
+                    0 -1px rgba(0,0,0,0.98);
+            }
+
+            #fs-empty-state {
+                display: none;
+                margin: 18px 0 10px 0;
+                padding: 18px 16px;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 10px;
+                background: #11161c;
+                color: #c9d1d9;
+                font-size: 14px;
+                line-height: 1.5;
+                text-align: center;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function findResultsGrid(container = document) {
+        return container.querySelector('.item_2.items');
+    }
+
+    function findContainer() {
+        return document.querySelector('div.peliculas') || document.querySelector('.box');
+    }
+
+    function findNativePaginationElement(doc = document) {
+        return doc.querySelector('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links');
+    }
+
+    function captureNativePagination() {
+        const el = findNativePaginationElement(document);
+        if (el) nativePaginationHTML = el.outerHTML;
+    }
+
+    function hideNativePagination() {
+        document.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links')
+            .forEach(el => el.classList.add('fs-hide-pagination'));
+    }
+
+    function renderCustomPagination() {
+        const host = document.getElementById('f-custom-pagination');
+        if (!host) return;
+
+        host.innerHTML = '';
+        if (!nativePaginationHTML) return;
+
+        const temp = document.createElement('div');
+        temp.innerHTML = nativePaginationHTML;
+        const original = temp.firstElementChild;
+        if (!original) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'fs-pagination-wrap';
+
+        const items = Array.from(original.querySelectorAll('a, span'));
+        for (const item of items) {
+            const clone = item.cloneNode(true);
+            const text = (clone.textContent || '').trim();
+            if (!text) continue;
+
+            if (clone.tagName.toLowerCase() === 'span') {
+                const cls = clone.className || '';
+                const isCurrent = /current|active/i.test(cls);
+                if (isCurrent || /^\d+$/.test(text)) {
+                    clone.classList.add('current');
+                    wrap.appendChild(clone);
+                }
+            } else {
+                wrap.appendChild(clone);
+            }
+        }
+
+        if (wrap.children.length) host.appendChild(wrap);
+    }
+
+    function ensureEmptyState(container) {
+        const itemGrid = resultsGrid || findResultsGrid(container) || container;
+        let emptyState = document.getElementById('fs-empty-state');
+
+        if (!emptyState) {
+            emptyState = document.createElement('div');
+            emptyState.id = 'fs-empty-state';
+            emptyState.textContent = 'Press Clear To Return Normal Results or Search In The Custom Search';
+            itemGrid.parentNode.insertBefore(emptyState, itemGrid);
+        }
+
+        return emptyState;
+    }
+
+    function updateEmptyState(container, hasVisibleItems) {
+        const emptyState = ensureEmptyState(container);
+        emptyState.style.display = hasVisibleItems ? 'none' : 'block';
+    }
+
+    function getBaseListingUrl() {
+        const url = new URL(window.location.href);
+        url.pathname = url.pathname.replace(/\/page\/\d+\/?$/, '/');
+        return `${url.origin}${url.pathname}${url.search}`;
+    }
+
+    function buildPageUrl(pageNum) {
+        const base = new URL(baseListingUrl || getBaseListingUrl());
+
+        if (pageNum <= 1) {
+            return base.toString();
+        }
+
+        const cleanPath = base.pathname.replace(/\/+$/, '');
+        return `${base.origin}${cleanPath}/page/${pageNum}/${base.search}`;
+    }
+
+    function normalizeSearchText(str) {
+        return (str || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    function squeezeSearchText(str) {
+        return normalizeSearchText(str).replace(/[^a-z0-9]+/g, '');
+    }
+
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function matchesCustomSearchText(text, query) {
+        if (!query) return true;
+
+        const normalizedText = normalizeSearchText(text);
+        const squeezedText = squeezeSearchText(text);
+        const tokens = normalizeSearchText(query).split(/[^a-z0-9]+/).filter(Boolean);
+
+        if (!tokens.length) return true;
+
+        const squeezedQuery = tokens.join('');
+        if (squeezedQuery && squeezedText.includes(squeezedQuery)) return true;
+
+        const loosePattern = tokens.map(escapeRegExp).join('[^a-z0-9]*');
+        try {
+            return new RegExp(loosePattern, 'i').test(normalizedText);
+        } catch (_) {
+            return normalizedText.includes(normalizeSearchText(query));
+        }
+    }
 
     function hasDV(item) {
         const span = item.querySelector('.imdb_r span');
@@ -39,35 +311,33 @@
     }
 
     function getRating(item) {
-        const match = item.innerText.match(/Rating\s*:\s*(\d+\.\d+)\/10/i);
+        const match = item.innerText.match(/Rating\\s*:\\s*(\\d+\\.\\d+)\\/10/i);
         return match ? parseFloat(match[1]) : 0;
     }
 
     function getSize(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const match = title.match(/–\s*(\d+(\.\d+)?)\s*GB/i);
+        const match = title.match(/–\\s*(\\d+(\\.\\d+)?)\\s*GB/i);
         return match ? parseFloat(match[1]) : null;
     }
 
     function getGroup(item) {
         const a = item.querySelector('h5 a');
         const title = a?.innerText || a?.textContent || '';
-        const clean = title.replace(/\s*–\s*[\d.]+\s*(GB|MB)\s*$/i, '').trim();
+        const clean = title.replace(/\\s*–\\s*[\\d.]+\\s*(GB|MB)\\s*$/i, '').trim();
         const parts = clean.split('-');
         return parts.length > 1 ? parts.pop().trim() : '';
     }
 
     function getResolution(item) {
         for (const span of item.querySelectorAll('.calidad3')) {
-            if (span.innerText.match(/\d{3,4}p/i)) return span.innerText.trim();
+            if (span.innerText.match(/\\d{3,4}p/i)) return span.innerText.trim();
         }
         return '';
     }
 
     function getCategory(item) {
-        // Check .calidad4 links for tv-shows and tv-packs
-        // Items without .calidad4 are movies
         const links = Array.from(item.querySelectorAll('.calidad4 a'));
         const hrefs = links.map(a => a.href || a.getAttribute('href') || '');
         if (hrefs.some(h => h.includes('tv-packs'))) return 'tv-packs';
@@ -75,15 +345,26 @@
         return 'movies';
     }
 
-    // ─── Release group dropdown ───────────────────────────────────────────────
+    function getItemKey(item) {
+        return item.querySelector('h5 a')?.href ||
+               item.querySelector('h5 a')?.textContent?.trim() ||
+               item.textContent.trim().slice(0, 200);
+    }
+
+    function indexExistingItems(container) {
+        for (const item of container.querySelectorAll('.fit.item')) {
+            const key = getItemKey(item);
+            if (key) seenReleaseLinks.add(key);
+        }
+    }
 
     function buildGroupDropdown(container) {
         const select = document.getElementById('f-group');
         if (!select) return;
 
         const current = select.value;
-
         const groups = new Set();
+
         for (const item of container.querySelectorAll('.fit.item')) {
             if (item.style.display === 'none') continue;
             const g = getGroup(item);
@@ -94,7 +375,7 @@
             a.toLowerCase().localeCompare(b.toLowerCase())
         );
 
-        select.innerHTML = '<option value="">All groups</option>';
+        select.innerHTML = '<option value="">All Release Groups</option>';
         for (const g of sorted) {
             const opt = document.createElement('option');
             opt.value = g.toLowerCase();
@@ -107,90 +388,38 @@
         }
     }
 
-    // ─── Filter logic ─────────────────────────────────────────────────────────
-
     function getFilterValues() {
         return {
-            onlyDV:    document.getElementById('f-dv')?.checked || false,
-            onlyHDR:   document.getElementById('f-hdr')?.checked || false,
-            res:       document.getElementById('f-res')?.value || '',
-            category:  document.getElementById('f-category')?.value || '',
+            onlyDV: document.getElementById('f-dv')?.checked || false,
+            onlyHDR: document.getElementById('f-hdr')?.checked || false,
+            res: document.getElementById('f-res')?.value || '',
+            category: document.getElementById('f-category')?.value || '',
             minRating: parseFloat(document.getElementById('f-rating')?.value) || 0,
-            minSize:   parseFloat(document.getElementById('f-minsize')?.value) || 0,
-            maxSize:   parseFloat(document.getElementById('f-maxsize')?.value) || Infinity,
-            group:     (document.getElementById('f-group')?.value || '').toLowerCase().trim(),
-            search:    (document.getElementById('f-search')?.value || '').toLowerCase().trim(),
+            minSize: parseFloat(document.getElementById('f-minsize')?.value) || 0,
+            maxSize: parseFloat(document.getElementById('f-maxsize')?.value) || Infinity,
+            group: (document.getElementById('f-group')?.value || '').toLowerCase().trim(),
+            search: (document.getElementById('f-search')?.value || '').trim(),
         };
     }
 
-    function itemMatchesFilters(item, f) {
+    function itemMatchesBaseFilters(item, f) {
         if (f.onlyDV && !hasDV(item)) return false;
         if (f.onlyHDR && !hasHDR(item)) return false;
         if (f.res && getResolution(item) !== f.res) return false;
         if (f.category && getCategory(item) !== f.category) return false;
         if (getRating(item) < f.minRating) return false;
+
         const size = getSize(item);
         if (size !== null && (size < f.minSize || size > f.maxSize)) return false;
+
         if (f.group && getGroup(item).toLowerCase() !== f.group) return false;
-        if (f.search && !item.innerText.toLowerCase().includes(f.search)) return false;
         return true;
     }
-
-    function applyFilters(container) {
-        const f = getFilterValues();
-        const items = Array.from(container.querySelectorAll('.fit.item'));
-
-        // Pass 1: filter without group — determines which items are visible for the dropdown
-        for (const item of items) {
-            item.style.display = itemMatchesFilters(item, { ...f, group: '' }) ? '' : 'none';
-        }
-
-        // Only rebuild the group dropdown when no group is selected —
-        // otherwise the current selection disappears from the list.
-        if (!f.group) buildGroupDropdown(container);
-
-
-        let visible = 0;
-        for (const item of items) {
-            if (item.style.display === 'none') continue;
-            if (f.group && getGroup(item).toLowerCase() !== f.group) {
-                item.style.display = 'none';
-            } else {
-                visible++;
-            }
-        }
-
-        const counter = document.getElementById('f-counter');
-        if (!counter) return;
-
-        if (visible === 0 && items.length > 0) {
-            const hasActiveFilters =
-                f.onlyDV || f.onlyHDR || f.res || f.category ||
-                f.minRating > 0 || f.minSize > 0 || f.maxSize < Infinity ||
-                f.group || f.search;
-
-            counter.innerHTML = hasActiveFilters
-                ? `<span style="color:#e06c75;">No results — try adjusting your filters</span>`
-                : `Showing 0 / ${items.length} releases`;
-        } else {
-            counter.innerHTML = `Showing ${visible} / ${items.length} releases`;
-        }
-
-        for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-            if (el.id === 'f-pagelimit') continue; // not a filter, don't highlight
-            const active = el.type === 'checkbox' ? el.checked : el.value !== '';
-            el.style.borderColor = active ? '#00e5ff' : 'rgba(255,255,255,0.15)';
-        }
-
-        saveFilters();
-    }
-
-    // ─── LocalStorage ─────────────────────────────────────────────────────────
 
     function saveFilters() {
         const data = {};
         for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-            if (el.id === 'f-pagelimit') continue; // always reset to "All pages" on page load
+            if (el.id === 'f-pagelimit') continue;
             data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         }
         try { localStorage.setItem('hdencodeFilters', JSON.stringify(data)); } catch (_) {}
@@ -209,31 +438,386 @@
         } catch (_) {}
     }
 
-    function clearFilters(container) {
-        for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-            if (el.id === 'f-pagelimit') el.value = 'all'; // always reset to All pag., not empty
-            else if (el.type === 'checkbox') el.checked = false;
-            else el.value = '';
-        }
-        try { localStorage.removeItem('hdencodeFilters'); } catch (_) {}
-        applyFilters(container);
+    function setStatus(text = '') {
+        const el = document.getElementById('f-load-status');
+        if (el) el.textContent = text;
     }
 
-    // ─── Quick links ──────────────────────────────────────────────────────────
+    function showProgress() {
+        const wrap = document.getElementById('f-progress-wrap');
+        const bar = document.getElementById('f-progress-bar');
+        if (wrap) wrap.style.display = 'block';
+        if (bar) bar.classList.add('fs-active');
+    }
 
-    const linkCache = new Map();
+    function hideProgress(immediate = false) {
+        const wrap = document.getElementById('f-progress-wrap');
+        const bar = document.getElementById('f-progress-bar');
+        const done = () => {
+            if (wrap) wrap.style.display = 'none';
+            if (bar) bar.classList.remove('fs-active');
+        };
+        if (immediate) done();
+        else setTimeout(done, 350);
+    }
+
+    function pauseObserver() {
+        if (observer && !observerPaused) {
+            observer.disconnect();
+            observerPaused = true;
+        }
+    }
+
+    function resumeObserver() {
+        if (observer && observerPaused && resultsGrid) {
+            observer.observe(resultsGrid, { childList: true, subtree: true });
+            observerPaused = false;
+        }
+    }
+
+    function applyFilters(container) {
+        const f = getFilterValues();
+        const items = Array.from(container.querySelectorAll('.fit.item'));
+        let searchMatches = 0;
+        let visibleCount = 0;
+
+        for (const item of items) {
+            const matchesBase = itemMatchesBaseFilters(item, f);
+            const matchesSearch = f.search ? matchesCustomSearchText(item.innerText, f.search) : false;
+
+            if (f.search) {
+                const finalMatch = matchesBase && matchesSearch;
+                item.style.display = finalMatch ? '' : 'none';
+                item.classList.toggle('fs-search-match', finalMatch);
+                if (finalMatch) {
+                    searchMatches++;
+                    visibleCount++;
+                }
+            } else {
+                item.style.display = matchesBase ? '' : 'none';
+                item.classList.remove('fs-search-match');
+                if (matchesBase) visibleCount++;
+            }
+        }
+
+        if (!f.group) buildGroupDropdown(container);
+
+        const searchStatus = document.getElementById('f-search-status');
+        if (searchStatus) {
+            if (f.search) {
+                searchStatus.textContent = isLoadingPages
+                    ? `${searchMatches} Results Found For Custom Search — searching more pages...`
+                    : `${searchMatches} Results Found For Custom Search`;
+                searchStatus.style.display = 'block';
+                searchStatus.style.color = SEARCH_STATUS_GREEN;
+            } else {
+                searchStatus.textContent = '';
+                searchStatus.style.display = 'none';
+            }
+        }
+
+        updateEmptyState(container, visibleCount > 0);
+        saveFilters();
+        return { searchMatches, visibleCount };
+    }
+
+    function scheduleRefresh(container) {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+            hideNativePagination();
+            renderCustomPagination();
+            buildGroupDropdown(container);
+            applyFilters(container);
+            injectLinkButtons(container);
+        }, 100);
+    }
+
+    function stopLoading(options = {}) {
+        if (abortController) {
+            try { abortController.abort(); } catch (_) {}
+        }
+
+        abortController = null;
+        isLoadingPages = false;
+
+        const stopBtn = document.getElementById('f-stop-loading');
+        const loadBtn = document.getElementById('f-loadall');
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (loadBtn) loadBtn.disabled = false;
+
+        if (rootContainer) {
+            const state = applyFilters(rootContainer);
+            if (!options.silent) {
+                setStatus(getFilterValues().search ? `${state.searchMatches} result(s) found` : 'Search stopped');
+            }
+        }
+
+        hideProgress(true);
+    }
+
+    function clearFilters(container) {
+        if (clearInProgress) return;
+        clearInProgress = true;
+
+        try {
+            pauseObserver();
+            clearTimeout(refreshTimer);
+            stopLoading({ silent: true });
+
+            for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
+                if (el.id === 'f-pagelimit') el.value = 'all';
+                else if (el.type === 'checkbox') el.checked = false;
+                else el.value = '';
+            }
+
+            try { localStorage.removeItem('hdencodeFilters'); } catch (_) {}
+
+            setStatus('');
+            const searchStatus = document.getElementById('f-search-status');
+            if (searchStatus) {
+                searchStatus.textContent = '';
+                searchStatus.style.display = 'none';
+            }
+
+            applyFilters(container);
+            buildGroupDropdown(container);
+            hideNativePagination();
+            renderCustomPagination();
+        } finally {
+            resumeObserver();
+            clearInProgress = false;
+        }
+    }
+
+    async function resetResultsToFirstPage(container, signal) {
+        const itemGrid = resultsGrid || findResultsGrid(container) || container;
+        const firstPageUrl = buildPageUrl(1);
+
+        setStatus('Loading first page...');
+
+        const res = await fetch(firstPageUrl, {
+            credentials: 'same-origin',
+            signal,
+            cache: 'no-store'
+        });
+
+        if (!res.ok) return false;
+
+        const html = await res.text();
+        if (signal.aborted) return false;
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        const nativePager = findNativePaginationElement(doc);
+        if (nativePager) nativePaginationHTML = nativePager.outerHTML;
+
+        doc.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers')
+            .forEach(el => el.remove());
+
+        const sourceGrid = findResultsGrid(doc) || doc;
+        const fetchedItems = Array.from(sourceGrid.querySelectorAll('.fit.item'));
+        if (!fetchedItems.length) return false;
+
+        const fragment = document.createDocumentFragment();
+        seenReleaseLinks.clear();
+
+        for (const node of fetchedItems) {
+            const clone = document.importNode(node, true);
+            clone.removeAttribute('style');
+            fragment.appendChild(clone);
+
+            const key = getItemKey(clone);
+            if (key) seenReleaseLinks.add(key);
+        }
+
+        pauseObserver();
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                itemGrid.innerHTML = '';
+                itemGrid.appendChild(fragment);
+                resolve();
+            });
+        });
+        resumeObserver();
+
+        nextPageToLoad = 2;
+        hideNativePagination();
+        renderCustomPagination();
+        injectLinkButtons(container);
+        applyFilters(container);
+
+        return true;
+    }
+
+    async function loadAllPages(container) {
+        const limitVal = document.getElementById('f-pagelimit')?.value || 'all';
+        const limit = limitVal === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(limitVal, 10);
+
+        showProgress();
+        abortController = new AbortController();
+        const { signal } = abortController;
+
+        let loaded = 0;
+        let stopReason = 'complete';
+
+        try {
+            baseListingUrl = getBaseListingUrl();
+
+            const firstPageLoaded = await resetResultsToFirstPage(container, signal);
+            if (!firstPageLoaded) {
+                stopReason = signal.aborted ? 'stopped' : 'complete';
+                return;
+            }
+
+            loaded = 1;
+
+            const firstState = applyFilters(container);
+            if (getFilterValues().search) {
+                setStatus(`${firstState.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
+            } else {
+                setStatus(`${loaded} page(s) loaded`);
+            }
+
+            for (let p = 2; loaded < limit; p++) {
+                if (signal.aborted) {
+                    stopReason = 'stopped';
+                    break;
+                }
+
+                setStatus(`Checking page ${p}`);
+
+                const url = buildPageUrl(p);
+                const res = await fetch(url, {
+                    credentials: 'same-origin',
+                    signal,
+                    cache: 'no-store'
+                });
+
+                if (!res.ok) {
+                    stopReason = 'complete';
+                    break;
+                }
+
+                const html = await res.text();
+                if (signal.aborted) {
+                    stopReason = 'stopped';
+                    break;
+                }
+
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                doc.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers')
+                    .forEach(el => el.remove());
+
+                const sourceGrid = findResultsGrid(doc) || doc;
+                const fetchedItems = Array.from(sourceGrid.querySelectorAll('.fit.item'));
+                if (!fetchedItems.length) {
+                    stopReason = 'complete';
+                    break;
+                }
+
+                const itemGrid = resultsGrid || findResultsGrid(container) || container;
+                const fragment = document.createDocumentFragment();
+                let newItemsCount = 0;
+
+                for (const node of fetchedItems) {
+                    const key = getItemKey(node);
+                    if (!key || seenReleaseLinks.has(key)) continue;
+
+                    const clone = document.importNode(node, true);
+                    clone.removeAttribute('style');
+                    fragment.appendChild(clone);
+                    seenReleaseLinks.add(key);
+                    newItemsCount++;
+                }
+
+                if (newItemsCount === 0) {
+                    stopReason = 'complete';
+                    break;
+                }
+
+                pauseObserver();
+                await new Promise(resolve => {
+                    requestAnimationFrame(() => {
+                        itemGrid.appendChild(fragment);
+                        resolve();
+                    });
+                });
+                resumeObserver();
+
+                loaded++;
+                nextPageToLoad = p + 1;
+
+                const state = applyFilters(container);
+                if (getFilterValues().search) {
+                    setStatus(`${state.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
+                } else {
+                    setStatus(`${loaded} page(s) loaded`);
+                }
+
+                injectLinkButtons(container);
+                await new Promise(r => setTimeout(r, 70));
+            }
+        } catch (e) {
+            if (e.name === 'AbortError' || signal.aborted) {
+                stopReason = 'stopped';
+            } else {
+                console.error(`${SCRIPT_NAME}: load pages error`, e);
+                stopReason = 'error';
+            }
+        } finally {
+            abortController = null;
+            isLoadingPages = false;
+
+            const stopBtn = document.getElementById('f-stop-loading');
+            const loadBtn = document.getElementById('f-loadall');
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (loadBtn) loadBtn.disabled = false;
+
+            const finalState = applyFilters(container);
+            hideNativePagination();
+            renderCustomPagination();
+            scheduleRefresh(container);
+
+            if (!clearInProgress) {
+                if (stopReason === 'stopped') {
+                    setStatus(getFilterValues().search
+                        ? `${finalState.searchMatches} result(s) found`
+                        : (loaded > 0 ? `Stopped — ${loaded} page(s) loaded` : 'Search stopped'));
+                } else if (stopReason === 'error') {
+                    setStatus('Error loading pages');
+                } else {
+                    setStatus(getFilterValues().search
+                        ? `${finalState.searchMatches} result(s) found`
+                        : (loaded > 0 ? `${loaded} page(s) loaded` : 'No more pages to load'));
+                }
+            }
+
+            hideProgress();
+
+            setTimeout(() => {
+                const t = document.getElementById('f-load-status')?.textContent || '';
+                if (
+                    t === 'Error loading pages' ||
+                    t === 'Search stopped' ||
+                    t.startsWith('Stopped —') ||
+                    t.endsWith('page(s) loaded') ||
+                    t.endsWith('result(s) found') ||
+                    t === 'No more pages to load'
+                ) {
+                    setStatus('');
+                }
+            }, 4000);
+        }
+    }
 
     async function fetchLinks(url) {
         if (linkCache.has(url)) return linkCache.get(url);
 
         try {
-            // Step 1: GET the detail page to get the form and its tokens
             const getRes = await fetch(url, { credentials: 'same-origin' });
             if (!getRes.ok) return null;
 
             const doc = new DOMParser().parseFromString(await getRes.text(), 'text/html');
-
-            // Step 2: Find the content protector form and collect all its fields
             const form = doc.querySelector('form[id^="content-protector-access-form"]');
             if (!form) return null;
 
@@ -242,7 +826,6 @@
                 if (input.name) formData.append(input.name, input.value);
             }
 
-            // Step 3: POST the form to unlock the links
             const action = new URL(form.getAttribute('action'), url).href;
             const postRes = await fetch(action, {
                 method: 'POST',
@@ -253,7 +836,6 @@
 
             const unlockedDoc = new DOMParser().parseFromString(await postRes.text(), 'text/html');
 
-            // Step 4: Extract links from blockquotes inside content-protector div
             const HOST_NAMES = {
                 'rg': 'Rapidgator', 'rapidgator': 'Rapidgator',
                 'nf': 'Nitroflare', 'nitroflare': 'Nitroflare',
@@ -261,11 +843,14 @@
                 'ul': 'Uploadgig', 'uploadgig': 'Uploadgig',
                 'katfile': 'Katfile', 'filefox': 'Filefox',
             };
+
             const links = [];
             for (const blockquote of unlockedDoc.querySelectorAll('.content-protector-access-form blockquote')) {
                 const img = blockquote.previousElementSibling?.querySelector('img');
-                const raw = (img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link').toLowerCase().trim();
+                const raw = (img?.alt || img?.src?.split('/').pop().replace(/\.(png|jpg|gif)$/i, '') || 'Link')
+                    .toLowerCase().trim();
                 const host = HOST_NAMES[raw] || raw.charAt(0).toUpperCase() + raw.slice(1);
+
                 for (const a of blockquote.querySelectorAll('a')) {
                     links.push({ host, url: a.href });
                 }
@@ -292,12 +877,13 @@
         btn.className = 'fs-link-btn';
         btn.title = 'Show download links';
         btn.innerHTML = '🔗 Links';
+
         Object.assign(btn.style, {
             cursor: 'pointer',
             marginLeft: '8px',
             fontSize: '11px',
-            color: '#00e5ff',
-            border: '1px solid rgba(0,229,255,0.35)',
+            color: ACCENT,
+            border: `1px solid ${ACCENT_BORDER}`,
             borderRadius: '4px',
             padding: '1px 7px',
             background: 'transparent',
@@ -309,6 +895,7 @@
 
         const panel = document.createElement('div');
         panel.className = 'fs-link-panel';
+
         Object.assign(panel.style, {
             display: 'none',
             marginTop: '6px',
@@ -348,43 +935,39 @@
                 }
 
                 const HOST_COLORS = {
-                    'Rapidgator': '#00b4d8', 'Nitroflare': '#f59e0b',
-                    'Mega': '#e74c3c', '1Fichier': '#8b5cf6',
-                    'Uploadgig': '#22c55e', 'Katfile': '#ec4899',
-                    'Filefox': '#f97316', 'DDL': '#8b949e',
+                    'Rapidgator': '#00b4d8',
+                    'Nitroflare': '#f59e0b',
+                    'Mega': '#e74c3c',
+                    '1Fichier': '#8b5cf6',
+                    'Uploadgig': '#22c55e',
+                    'Katfile': '#ec4899',
+                    'Filefox': '#f97316',
+                    'DDL': '#8b949e',
                 };
 
                 panel.innerHTML = Object.entries(grouped).map(([host, urls]) => {
                     const color = HOST_COLORS[host] || '#8b949e';
-                    const allUrls = urls.join('\n');
+                    const allUrls = urls.join('\\n');
+
                     return `<div style="margin-bottom:8px;">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
                                 <span style="color:#8b949e; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; font-weight:600;">${host}</span>
                             </div>
-                            ${urls.length > 1 ? `<span class="fs-copy-btn" data-url="${allUrls}" title="Copy all ${host} links"
+                            ${urls.length > 1 ? `<span class="fs-copy-btn" data-url="${allUrls}" data-label="📋 Copy all" title="Copy all ${host} links"
                                 style="cursor:pointer; font-size:10px; color:#8b949e; white-space:nowrap;
                                        padding:1px 6px; border:1px solid #30363d; border-radius:4px;
-                                       user-select:none; flex-shrink:0;"
-                                onmouseover="this.style.color='#e6edf3'; this.style.borderColor='#8b949e';"
-                                onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d';"
-                            >📋 Copy all</span>` : ''}
+                                       user-select:none; flex-shrink:0;">📋 Copy all</span>` : ''}
                         </div>
                         ${urls.map(u =>
                             `<span style="display:inline-flex; align-items:center; gap:6px; margin:1px 0;">
                                 <a href="${u}" target="_blank"
-                                    style="color:#00e5ff; text-decoration:none; word-break:break-all;"
-                                    onmouseover="this.style.textDecoration='underline'"
-                                    onmouseout="this.style.textDecoration='none'"
-                                >${u}</a>
-                                <span class="fs-copy-btn" data-url="${u}" title="Copy link"
+                                    style="color:${ACCENT}; text-decoration:none; word-break:break-all;">${u}</a>
+                                <span class="fs-copy-btn" data-url="${u}" data-label="📋" title="Copy link"
                                     style="cursor:pointer; font-size:11px; color:#8b949e; white-space:nowrap;
                                            padding:1px 5px; border:1px solid #30363d; border-radius:4px;
-                                           user-select:none; flex-shrink:0;"
-                                    onmouseover="this.style.color='#e6edf3'; this.style.borderColor='#8b949e';"
-                                    onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d';"
-                                >📋</span>
+                                           user-select:none; flex-shrink:0;">📋</span>
                             </span>`
                         ).join('<br>')}
                     </div>`;
@@ -395,31 +978,49 @@
             panel.style.display = 'block';
             open = true;
 
-            // Copy button handlers
             panel.querySelectorAll('.fs-copy-btn').forEach(copyBtn => {
+                copyBtn.addEventListener('mouseover', () => {
+                    copyBtn.style.color = '#e6edf3';
+                    copyBtn.style.borderColor = '#8b949e';
+                });
+
+                copyBtn.addEventListener('mouseout', () => {
+                    copyBtn.style.color = '#8b949e';
+                    copyBtn.style.borderColor = '#30363d';
+                });
+
                 copyBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const urlToCopy = copyBtn.dataset.url;
+                    const originalLabel = copyBtn.dataset.label || '📋';
+
                     try {
                         await navigator.clipboard.writeText(urlToCopy);
                         copyBtn.textContent = '✓';
-                        copyBtn.style.color = '#00e5ff';
-                        copyBtn.style.borderColor = '#00e5ff';
+                        copyBtn.style.color = ACCENT;
+                        copyBtn.style.borderColor = ACCENT;
                         setTimeout(() => {
-                            copyBtn.textContent = '📋';
+                            copyBtn.textContent = originalLabel;
                             copyBtn.style.color = '#8b949e';
                             copyBtn.style.borderColor = '#30363d';
                         }, 1500);
                     } catch (_) {
                         copyBtn.textContent = '✗';
-                        setTimeout(() => { copyBtn.textContent = '📋'; }, 1500);
+                        setTimeout(() => {
+                            copyBtn.textContent = originalLabel;
+                        }, 1500);
                     }
                 });
             });
         });
 
-        btn.addEventListener('mouseover', () => { if (!open) btn.style.background = 'rgba(0,229,255,0.08)'; });
-        btn.addEventListener('mouseout',  () => { if (!open) btn.style.background = 'transparent'; });
+        btn.addEventListener('mouseover', () => {
+            if (!open) btn.style.background = ACCENT_BG;
+        });
+
+        btn.addEventListener('mouseout', () => {
+            if (!open) btn.style.background = 'transparent';
+        });
 
         h5.appendChild(btn);
         h5.after(panel);
@@ -430,8 +1031,6 @@
             injectLinkButton(item);
         }
     }
-
-
 
     const INPUT_STYLE = `
         background: #161b22;
@@ -446,58 +1045,50 @@
         box-sizing: border-box;
     `;
 
-    // Consistent width for all number inputs
-    const NUMBER_W = 'width:88px;';
-
     function createBar() {
         const bar = document.createElement('div');
         bar.id = `${SCRIPT_ID}-bar`;
+
         Object.assign(bar.style, {
-            background:   '#0d1117',
-            padding:      '14px 18px',
+            background: '#0d1117',
+            padding: '14px 18px 18px 18px',
             borderRadius: '12px',
-            border:       '1px solid #21262d',
-            margin:       '16px 0',
-            color:        '#e6edf3',
-            fontSize:     '13px',
-            boxShadow:    '0 4px 20px rgba(0,0,0,0.4)',
+            border: '1px solid #21262d',
+            margin: '0 0 28px 0',
+            color: '#e6edf3',
+            fontSize: '13px',
+            boxShadow: '0 4px 20px rgba(229,9,20,0.15)',
         });
 
         bar.innerHTML = `
-            <!-- Header row: title + counter -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                <strong style="color:#00e5ff; font-size:14px; letter-spacing:0.5px;">⚡ ${SCRIPT_NAME}</strong>
-                <span id="f-counter" style="color:#8b949e; font-size:12px;"></span>
+                <strong style="color:${ACCENT}; font-size:14px; letter-spacing:0.5px;">⚡ ${SCRIPT_NAME}</strong>
             </div>
 
-            <!-- Row 1: quality filters left, category right -->
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
-                        <input type="checkbox" id="f-dv" style="accent-color:#00e5ff;">
+                        <input type="checkbox" id="f-dv" style="accent-color:${ACCENT};">
                         <span>Dolby Vision</span>
                     </label>
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
-                        <input type="checkbox" id="f-hdr" style="accent-color:#00e5ff;">
+                        <input type="checkbox" id="f-hdr" style="accent-color:${ACCENT};">
                         <span>HDR</span>
                     </label>
-
-                    <select id="f-res" style="${INPUT_STYLE} width:130px;">
-                        <option value="">All resolutions</option>
+                    <select id="f-res" style="${INPUT_STYLE} width:145px;">
+                        <option value="">All Resolutions</option>
                         <option value="2160p">2160p</option>
                         <option value="1080p">1080p</option>
                         <option value="720p">720p</option>
                     </select>
-
-                    <input type="number" id="f-rating" placeholder="Min rating" step="0.1" min="0" max="10"
-                        style="${INPUT_STYLE} ${NUMBER_W}">
+                    <input type="number" id="f-rating" placeholder="Minimum Rating" step="0.1" min="0" max="10"
+                        style="${INPUT_STYLE} width:145px;">
                     <input type="number" id="f-minsize" placeholder="Min GB" min="0"
-                        style="${INPUT_STYLE} ${NUMBER_W}">
+                        style="${INPUT_STYLE} width:88px;">
                     <input type="number" id="f-maxsize" placeholder="Max GB" min="0"
-                        style="${INPUT_STYLE} ${NUMBER_W}">
+                        style="${INPUT_STYLE} width:88px;">
                 </div>
 
-                <!-- Category: right-aligned but visually part of row 1 -->
                 <select id="f-category" style="${INPUT_STYLE} width:110px;">
                     <option value="">All</option>
                     <option value="movies">Movies</option>
@@ -506,80 +1097,119 @@
                 </select>
             </div>
 
-            <!-- Subtle divider between rows -->
-            <div style="border-top: 1px solid #21262d; margin-bottom:8px;"></div>
+            <div style="border-top:1px solid #21262d; margin-bottom:10px;"></div>
 
-            <!-- Row 2: search & group left, load controls + clear right -->
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <select id="f-group" style="${INPUT_STYLE} width:150px;">
-                        <option value="">All groups</option>
+                    <select id="f-group" style="${INPUT_STYLE} width:165px;">
+                        <option value="">All Release Groups</option>
                     </select>
                     <input type="text" id="f-search" placeholder="Search anything..."
-                        style="${INPUT_STYLE} width:180px;">
+                        style="${INPUT_STYLE} width:240px;">
                 </div>
 
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span id="f-load-status" style="color:#8b949e; font-size:12px;"></span>
-
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <select id="f-pagelimit" style="${INPUT_STYLE} width:100px;">
-                        <option value="all">All pages</option>
-                        <option value="5">5 pages</option>
-                        <option value="10">10 pages</option>
-                        <option value="20">20 pages</option>
-                        <option value="50">50 pages</option>
-                        <option value="100">100 pages</option>
+                        <option value="all">All Pages</option>
+                        <option value="5">5 Pages</option>
+                        <option value="10">10 Pages</option>
+                        <option value="20">20 Pages</option>
+                        <option value="50">50 Pages</option>
+                        <option value="100">100 Pages</option>
                     </select>
 
-                    <button id="f-loadall"
-                        style="background:#21262d; color:#e6edf3;
-                               border:1px solid rgba(0,229,255,0.25);
+                    <button id="f-stop-loading"
+                        style="display:none; background:transparent; color:#f59e0b;
+                               border:1px solid rgba(245,158,11,0.35);
                                border-radius:6px; padding:5px 12px; cursor:pointer; font-size:13px;
-                               height:30px; box-sizing:border-box; transition: all 0.2s;">
-                        ↓ Load pages
+                               height:30px; box-sizing:border-box; transition:all 0.2s; white-space:nowrap;">
+                        ⏹ Stop Page Loading
                     </button>
 
-                    <!-- Subtle separator -->
+                    <button id="f-loadall"
+                        style="background:linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%);
+                               color:#ffffff;
+                               border:1px solid ${SEARCH_GREEN_BORDER};
+                               border-radius:8px; padding:5px 16px; cursor:pointer; font-size:13px;
+                               font-weight:800; height:30px; box-sizing:border-box; transition:all 0.2s ease;
+                               white-space:nowrap;
+                               -webkit-text-stroke:0.9px rgba(0,0,0,0.98);
+                               text-shadow:
+                                   -1px 0 rgba(0,0,0,0.98),
+                                   0 1px rgba(0,0,0,0.98),
+                                   1px 0 rgba(0,0,0,0.98),
+                                   0 -1px rgba(0,0,0,0.98),
+                                   -1px -1px rgba(0,0,0,0.75),
+                                   1px 1px rgba(0,0,0,0.75);
+                               box-shadow:
+                                   inset 0 1px 0 rgba(255,255,255,0.14),
+                                   0 0 0 1px rgba(20,83,45,0.5),
+                                   0 8px 18px rgba(0,0,0,0.24),
+                                   0 0 12px ${SEARCH_GREEN_GLOW};">
+                        Search
+                    </button>
+
                     <div style="width:1px; height:20px; background:#30363d;"></div>
 
                     <button id="f-clear"
                         style="background:transparent; color:#e06c75;
                                border:1px solid rgba(224,108,117,0.35);
                                border-radius:6px; padding:5px 12px; cursor:pointer; font-size:13px;
-                               height:30px; box-sizing:border-box; transition: all 0.2s;">
+                               height:30px; box-sizing:border-box; transition:all 0.2s; white-space:nowrap;">
                         ✕ Clear
                     </button>
                 </div>
             </div>
 
-            <!-- Progress bar: hidden until loading starts -->
-            <div id="f-progress-wrap" style="display:none; margin-top:10px;">
-                <div style="background:#21262d; border-radius:999px; height:5px; overflow:hidden;">
-                    <div id="f-progress-bar"
-                        style="height:100%; width:0%; background:#00e5ff;
-                               border-radius:999px; transition: width 0.3s ease;"></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                    <span id="f-progress-label" style="color:#8b949e; font-size:12px;"></span>
-                    <span id="f-progress-pct" style="color:#8b949e; font-size:12px;"></span>
+            <div style="margin-top:12px;">
+                <div id="f-load-status"
+                    style="color:#8b949e; font-size:12px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+            </div>
+
+            <div style="margin-top:4px; margin-bottom:12px;">
+                <div id="f-search-status"
+                    style="display:none; color:${SEARCH_STATUS_GREEN}; font-size:12px; font-weight:700; letter-spacing:0.2px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+            </div>
+
+            <div id="f-progress-wrap" style="display:none; margin-top:6px;">
+                <div style="background:#21262d; border-radius:999px; height:6px; overflow:hidden;">
+                    <div id="f-progress-bar" style="height:100%; width:100%; border-radius:999px;"></div>
                 </div>
             </div>
+
+            <div id="f-custom-pagination"></div>
         `;
 
         bar.addEventListener('mouseover', e => {
             if (e.target.id === 'f-loadall') {
-                e.target.style.background = '#30363d';
-                e.target.style.borderColor = 'rgba(0,229,255,0.5)';
+                e.target.style.background = `linear-gradient(180deg, ${SEARCH_GREEN_HOVER_TOP} 0%, ${SEARCH_GREEN_HOVER_BOTTOM} 100%)`;
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow =
+                    'inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(21,128,61,0.60), 0 10px 20px rgba(0,0,0,0.28), 0 0 16px rgba(34,197,94,0.24)';
+            }
+            if (e.target.id === 'f-stop-loading') {
+                e.target.style.background = 'rgba(245,158,11,0.12)';
+                e.target.style.borderColor = 'rgba(245,158,11,0.6)';
             }
             if (e.target.id === 'f-clear') {
                 e.target.style.background = 'rgba(224,108,117,0.12)';
                 e.target.style.borderColor = 'rgba(224,108,117,0.6)';
             }
         });
+
         bar.addEventListener('mouseout', e => {
             if (e.target.id === 'f-loadall') {
-                e.target.style.background = '#21262d';
-                e.target.style.borderColor = 'rgba(0,229,255,0.25)';
+                e.target.style.background = `linear-gradient(180deg, ${SEARCH_GREEN_TOP} 0%, ${SEARCH_GREEN_BOTTOM} 100%)`;
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow =
+                    `inset 0 1px 0 rgba(255,255,255,0.14),
+                     0 0 0 1px rgba(20,83,45,0.5),
+                     0 8px 18px rgba(0,0,0,0.24),
+                     0 0 12px ${SEARCH_GREEN_GLOW}`;
+            }
+            if (e.target.id === 'f-stop-loading') {
+                e.target.style.background = 'transparent';
+                e.target.style.borderColor = 'rgba(245,158,11,0.35)';
             }
             if (e.target.id === 'f-clear') {
                 e.target.style.background = 'transparent';
@@ -590,158 +1220,97 @@
         return bar;
     }
 
-    // ─── Progress bar ─────────────────────────────────────────────────────────
+    function createObserver() {
+        if (!resultsGrid) return;
 
-    function showProgress() {
-        document.getElementById('f-progress-wrap').style.display = 'block';
-    }
-
-    function updateProgress(loaded, total) {
-        const pct = Math.round((loaded / total) * 100);
-        document.getElementById('f-progress-bar').style.width = `${pct}%`;
-        document.getElementById('f-progress-label').textContent = `Page ${loaded + 1} of ${total}`;
-        document.getElementById('f-progress-pct').textContent = `${pct}%`;
-    }
-
-    function hideProgress() {
-        // Fill bar to 100% then hide after a short pause
-        document.getElementById('f-progress-bar').style.width = '100%';
-        document.getElementById('f-progress-pct').textContent = '100%';
-        document.getElementById('f-progress-label').textContent = 'Done!';
-        setTimeout(() => {
-            document.getElementById('f-progress-wrap').style.display = 'none';
-            document.getElementById('f-progress-bar').style.width = '0%';
-        }, 1500);
-    }
-
-    // ─── Load pages ───────────────────────────────────────────────────────────
-
-    async function loadAllPages(container, statusEl) {
-        const itemGrid = container.querySelector('.item_2.items') || container;
-        const currentUrl = new URL(window.location.href);
-
-        // Determine limit based on dropdown choice
-        // We do NOT use maxPage as upper limit — HDEncode only shows 1,2,3 and "Last"
-        // meaning maxPage is always 3. Instead we keep fetching until a page returns
-        // no items or the chosen limit is reached.
-        const limitVal = document.getElementById('f-pagelimit')?.value || 'all';
-        const limit = limitVal === 'all' ? 99999 : parseInt(limitVal);
-
-        showProgress();
-        updateProgress(0, limit === 99999 ? 1 : limit);
-
-        let loaded = 0;
-        for (let p = 2; loaded < limit; p++) {
-            const url = currentUrl.pathname.match(/\/page\/\d+\//)
-                ? window.location.href.replace(/\/page\/\d+\//, `/page/${p}/`)
-                : currentUrl.origin + currentUrl.pathname.replace(/\/$/, '') + `/page/${p}/` + currentUrl.search;
-
-            try {
-                const res = await fetch(url, { credentials: 'same-origin' });
-                if (!res.ok) break;
-
-                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-                const sourceGrid = doc.querySelector('.item_2.items') || doc;
-
-                // Remove pagination element from fetched pages so it doesn't appear in the grid
-                sourceGrid.querySelector('#paginador')?.remove();
-
-                const fetchedItems = sourceGrid.querySelectorAll('.fit.item');
-                if (!fetchedItems.length) break; // no more items = last page reached
-
-                const fragment = document.createDocumentFragment();
-                for (const node of fetchedItems) {
-                    const clone = document.importNode(node, true);
-                    clone.removeAttribute('style');
-                    fragment.appendChild(clone);
-                }
-                itemGrid.appendChild(fragment);
-
-                loaded++;
-                if (limit !== 99999) updateProgress(loaded, limit);
-                else {
-                    // For "all": show pages loaded as running count
-                    document.getElementById('f-progress-bar').style.width = '100%';
-                    document.getElementById('f-progress-label').textContent = `${loaded} page(s) loaded...`;
-                    document.getElementById('f-progress-pct').textContent = '';
-                }
-                await new Promise(r => setTimeout(r, 300));
-            } catch (e) {
-                console.error(`${SCRIPT_NAME}: fetch failed for`, url, e);
-                break;
-            }
+        if (observer) {
+            try { observer.disconnect(); } catch (_) {}
         }
 
-        hideProgress();
-        statusEl.textContent = `${loaded} page(s) loaded`;
-        setTimeout(() => statusEl.textContent = '', 5000);
-    }
+        let debounceTimer;
+        observer = new MutationObserver(() => {
+            if (observerPaused || clearInProgress) return;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                indexExistingItems(rootContainer);
+                hideNativePagination();
+                renderCustomPagination();
+                applyFilters(rootContainer);
+                injectLinkButtons(rootContainer);
+            }, 120);
+        });
 
-    // ─── Init ─────────────────────────────────────────────────────────────────
+        observer.observe(resultsGrid, { childList: true, subtree: true });
+        observerPaused = false;
+    }
 
     function init(container) {
         if (document.getElementById(`${SCRIPT_ID}-bar`)) return;
 
+        rootContainer = container;
+        resultsGrid = findResultsGrid(container) || container;
+        baseListingUrl = getBaseListingUrl();
+        nextPageToLoad = 2;
+
+        injectStyles();
+        captureNativePagination();
+        hideNativePagination();
+
+        indexExistingItems(container);
+
         const bar = createBar();
-        try {
-            container.parentNode.insertBefore(bar, container);
-        } catch (_) {
-            document.body.insertBefore(bar, document.body.firstChild);
-        }
+        resultsGrid.parentNode.insertBefore(bar, resultsGrid);
+
+        ensureEmptyState(container);
+        renderCustomPagination();
+
+        const searchInput = bar.querySelector('#f-search');
 
         bar.querySelector('#f-clear').addEventListener('click', () => clearFilters(container));
+        bar.querySelector('#f-stop-loading').addEventListener('click', () => stopLoading());
 
         bar.querySelector('#f-loadall').addEventListener('click', async function () {
+            if (isLoadingPages || clearInProgress) return;
+
             this.disabled = true;
-            const status = document.getElementById('f-load-status');
+            document.getElementById('f-stop-loading').style.display = 'inline-block';
+            isLoadingPages = true;
 
-            // Hide the existing page pagination — no longer relevant once we load extra pages
-            document.querySelector('#paginador')?.style.setProperty('display', 'none');
+            baseListingUrl = getBaseListingUrl();
+            nextPageToLoad = 2;
 
-            try {
-                await loadAllPages(container, status);
-                buildGroupDropdown(container);
-                applyFilters(container);
-            } catch (e) {
-                console.error(`${SCRIPT_NAME}: load pages error`, e);
-                status.textContent = 'Error loading pages';
-            } finally {
-                this.disabled = false;
+            applyFilters(container);
+            await loadAllPages(container);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!isLoadingPages && !clearInProgress) {
+                    bar.querySelector('#f-loadall').click();
+                }
             }
         });
 
         for (const el of bar.querySelectorAll('input, select')) {
+            if (el.id === 'f-search') continue;
             el.addEventListener('input', () => applyFilters(container));
         }
+
+        searchInput.addEventListener('input', () => applyFilters(container));
 
         buildGroupDropdown(container);
         loadFilters();
         applyFilters(container);
         injectLinkButtons(container);
-
-        let debounceTimer;
-        new MutationObserver(() => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                applyFilters(container);
-                injectLinkButtons(container);
-            }, 150);
-        }).observe(container, { childList: true, subtree: true });
-    }
-
-    function findContainer() {
-        return document.querySelector('div.peliculas') || document.querySelector('.box');
+        createObserver();
     }
 
     function waitForContainer() {
         const container = findContainer();
-        if (container) {
-            init(container);
-        } else {
-            setTimeout(waitForContainer, 400);
-        }
+        if (container) init(container);
+        else setTimeout(waitForContainer, 400);
     }
 
     waitForContainer();
-
 })();
