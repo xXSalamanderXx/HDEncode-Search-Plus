@@ -47,6 +47,11 @@
     let nativePaginationHTML = '';
     let refreshTimer = null;
     let baseListingUrl = '';
+    let searchRunId = 0;
+    let activeLoadToken = 0;
+    let isStoppingNow = false;
+    let uiRefreshQueued = false;
+    let suppressObserverUntil = 0;
 
     const seenReleaseLinks = new Set();
     const linkCache = new Map();
@@ -116,10 +121,6 @@
                 margin: 10px 0;
             }
 
-            #${SCRIPT_ID}-bar .fs-results-gap {
-                margin-bottom: 28px;
-            }
-
             #f-progress-bar.fs-active {
                 width: 100% !important;
                 background: linear-gradient(
@@ -137,10 +138,29 @@
             }
 
             .fs-search-match {
-                outline: 1px solid rgba(34, 197, 94, 0.55);
+                outline: 1px solid rgba(34, 197, 94, 0.60);
                 box-shadow:
-                    0 0 0 1px rgba(34, 197, 94, 0.22) inset,
-                    0 0 16px rgba(34, 197, 94, 0.15);
+                    0 0 0 1px rgba(34, 197, 94, 0.26) inset,
+                    0 0 18px rgba(34, 197, 94, 0.20),
+                    0 0 34px rgba(34, 197, 94, 0.12) !important;
+            }
+
+            .fs-visible-card {
+                border-radius: 14px !important;
+                overflow: hidden;
+                box-shadow:
+                    0 0 0 1px rgba(34,197,94,0.24),
+                    0 0 22px rgba(34,197,94,0.22),
+                    0 0 40px rgba(34,197,94,0.12) !important;
+                transition: box-shadow 0.2s ease, transform 0.2s ease;
+            }
+
+            .fs-visible-card:hover {
+                box-shadow:
+                    0 0 0 1px rgba(34,197,94,0.32),
+                    0 0 26px rgba(34,197,94,0.28),
+                    0 0 46px rgba(34,197,94,0.16) !important;
+                transform: translateY(-1px);
             }
 
             .fs-hide-pagination {
@@ -237,12 +257,21 @@
         document.head.appendChild(style);
     }
 
-    function findResultsGrid(container = document) {
-        return container.querySelector('.item_2.items');
-    }
-
     function findContainer() {
         return document.querySelector('div.peliculas') || document.querySelector('.box');
+    }
+
+    function findResultsGrid(container = document) {
+        return container.querySelector('.item_2.items') ||
+               container.querySelector('.item_2');
+    }
+
+    function getActiveResultsGrid(container = rootContainer || document) {
+        return resultsGrid ||
+               findResultsGrid(container) ||
+               container.querySelector('.peliculas .item_2.items') ||
+               container.querySelector('.box .item_2.items') ||
+               container;
     }
 
     function findNativePaginationElement(doc = document) {
@@ -296,7 +325,7 @@
     }
 
     function ensureEmptyState(container) {
-        const itemGrid = resultsGrid || findResultsGrid(container) || container;
+        const itemGrid = getActiveResultsGrid(container);
         let emptyState = document.getElementById('fs-empty-state');
 
         if (!emptyState) {
@@ -545,6 +574,17 @@
         }
     }
 
+    function styleVisibleResults(container) {
+        const items = Array.from(container.querySelectorAll('.fit.item'));
+        for (const item of items) {
+            if (item.style.display === 'none') {
+                item.classList.remove('fs-visible-card');
+            } else {
+                item.classList.add('fs-visible-card');
+            }
+        }
+    }
+
     function applyFilters(container) {
         const f = getFilterValues();
         const items = Array.from(container.querySelectorAll('.fit.item'));
@@ -586,53 +626,103 @@
             }
         }
 
+        styleVisibleResults(container);
         updateEmptyState(container, visibleCount > 0);
         saveFilters();
         return { searchMatches, visibleCount };
     }
 
-    function scheduleRefresh(container) {
-        clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(() => {
+    function queueUIRefresh(container, opts = {}) {
+        if (uiRefreshQueued) return;
+        uiRefreshQueued = true;
+
+        requestAnimationFrame(() => {
+            uiRefreshQueued = false;
             hideNativePagination();
             renderCustomPagination();
             buildGroupDropdown(container);
             applyFilters(container);
             injectLinkButtons(container);
-        }, 100);
+
+            if (opts.clearStatus) {
+                setStatus('');
+                const searchStatus = document.getElementById('f-search-status');
+                if (searchStatus && !getFilterValues().search) {
+                    searchStatus.textContent = '';
+                    searchStatus.style.display = 'none';
+                }
+            }
+        });
     }
 
-    function stopLoading(options = {}) {
-        if (abortController) {
-            try { abortController.abort(); } catch (_) {}
-        }
+    function scheduleRefresh(container) {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+            queueUIRefresh(container);
+        }, 80);
+    }
 
+    function abortActiveLoading(reason = 'stopped') {
+        if (!abortController || isStoppingNow) return false;
+
+        isStoppingNow = true;
+        suppressObserverUntil = Date.now() + 800;
+        activeLoadToken++;
+        searchRunId++;
+
+        try {
+            abortController.abort(reason);
+        } catch (_) {}
+
+        return true;
+    }
+
+    function finishStopUI() {
         abortController = null;
         isLoadingPages = false;
+        isStoppingNow = false;
 
         const stopBtn = document.getElementById('f-stop-loading');
         const loadBtn = document.getElementById('f-loadall');
-        if (stopBtn) stopBtn.style.display = 'none';
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+            stopBtn.disabled = false;
+        }
         if (loadBtn) loadBtn.disabled = false;
 
-        if (rootContainer) {
-            const state = applyFilters(rootContainer);
-            if (!options.silent) {
-                setStatus(getFilterValues().search ? `${state.searchMatches} result(s) found` : 'Search stopped');
-            }
-        }
-
         hideProgress(true);
+    }
+
+    function stopLoading() {
+        if (!isLoadingPages && !abortController) return;
+        if (isStoppingNow) return;
+
+        const didAbort = abortActiveLoading('user-stop');
+
+        const stopBtn = document.getElementById('f-stop-loading');
+        const loadBtn = document.getElementById('f-loadall');
+        if (stopBtn) stopBtn.disabled = true;
+        if (loadBtn) loadBtn.disabled = true;
+
+        setStatus('Stopping search...');
+        hideProgress(true);
+
+        if (!didAbort) {
+            finishStopUI();
+            queueUIRefresh(rootContainer);
+        }
     }
 
     function clearFilters(container) {
         if (clearInProgress) return;
         clearInProgress = true;
+        suppressObserverUntil = Date.now() + 1000;
 
         try {
-            pauseObserver();
             clearTimeout(refreshTimer);
-            stopLoading({ silent: true });
+            pauseObserver();
+
+            abortActiveLoading('clear');
 
             for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
                 if (el.id === 'f-pagelimit') el.value = 'all';
@@ -642,6 +732,14 @@
 
             try { localStorage.removeItem('hdencodeFilters'); } catch (_) {}
 
+            const stopBtn = document.getElementById('f-stop-loading');
+            const loadBtn = document.getElementById('f-loadall');
+            if (stopBtn) {
+                stopBtn.style.display = 'none';
+                stopBtn.disabled = false;
+            }
+            if (loadBtn) loadBtn.disabled = false;
+
             setStatus('');
             const searchStatus = document.getElementById('f-search-status');
             if (searchStatus) {
@@ -649,18 +747,25 @@
                 searchStatus.style.display = 'none';
             }
 
+            abortController = null;
+            isLoadingPages = false;
+            isStoppingNow = false;
+
             applyFilters(container);
-            buildGroupDropdown(container);
+            styleVisibleResults(container);
             hideNativePagination();
             renderCustomPagination();
+            updateEmptyState(container, Array.from(container.querySelectorAll('.fit.item')).some(item => item.style.display !== 'none'));
         } finally {
-            resumeObserver();
+            setTimeout(() => {
+                resumeObserver();
+            }, 50);
             clearInProgress = false;
         }
     }
 
-    async function resetResultsToFirstPage(container, signal) {
-        const itemGrid = resultsGrid || findResultsGrid(container) || container;
+    async function resetResultsToFirstPage(container, signal, runId) {
+        const itemGrid = getActiveResultsGrid(container);
         const firstPageUrl = buildPageUrl(1);
 
         setStatus('Loading first page...');
@@ -671,10 +776,10 @@
             cache: 'no-store'
         });
 
-        if (!res.ok) return false;
+        if (!res.ok || signal.aborted || runId !== searchRunId) return false;
 
         const html = await res.text();
-        if (signal.aborted) return false;
+        if (signal.aborted || runId !== searchRunId) return false;
 
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const nativePager = findNativePaginationElement(doc);
@@ -709,6 +814,7 @@
         });
         resumeObserver();
 
+        resultsGrid = itemGrid;
         nextPageToLoad = 2;
         hideNativePagination();
         renderCustomPagination();
@@ -721,6 +827,8 @@
     async function loadAllPages(container) {
         const limitVal = document.getElementById('f-pagelimit')?.value || 'all';
         const limit = limitVal === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(limitVal, 10);
+        const runId = ++searchRunId;
+        const localToken = ++activeLoadToken;
 
         showProgress();
         abortController = new AbortController();
@@ -731,8 +839,9 @@
 
         try {
             baseListingUrl = getBaseListingUrl();
+            resultsGrid = getActiveResultsGrid(container);
 
-            const firstPageLoaded = await resetResultsToFirstPage(container, signal);
+            const firstPageLoaded = await resetResultsToFirstPage(container, signal, runId);
             if (!firstPageLoaded) {
                 stopReason = signal.aborted ? 'stopped' : 'complete';
                 return;
@@ -740,7 +849,7 @@
 
             loaded = 1;
 
-            const firstState = applyFilters(container);
+            let firstState = applyFilters(container);
             if (getFilterValues().search) {
                 setStatus(`${firstState.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
             } else {
@@ -748,7 +857,7 @@
             }
 
             for (let p = 2; loaded < limit; p++) {
-                if (signal.aborted) {
+                if (signal.aborted || runId !== searchRunId || localToken !== activeLoadToken) {
                     stopReason = 'stopped';
                     break;
                 }
@@ -768,7 +877,7 @@
                 }
 
                 const html = await res.text();
-                if (signal.aborted) {
+                if (signal.aborted || runId !== searchRunId || localToken !== activeLoadToken) {
                     stopReason = 'stopped';
                     break;
                 }
@@ -784,7 +893,7 @@
                     break;
                 }
 
-                const itemGrid = resultsGrid || findResultsGrid(container) || container;
+                const itemGrid = getActiveResultsGrid(container);
                 const fragment = document.createDocumentFragment();
                 let newItemsCount = 0;
 
@@ -800,8 +909,7 @@
                 }
 
                 if (newItemsCount === 0) {
-                    stopReason = 'complete';
-                    break;
+                    continue;
                 }
 
                 pauseObserver();
@@ -813,18 +921,20 @@
                 });
                 resumeObserver();
 
+                resultsGrid = itemGrid;
                 loaded++;
                 nextPageToLoad = p + 1;
 
                 const state = applyFilters(container);
+                injectLinkButtons(container);
+
                 if (getFilterValues().search) {
                     setStatus(`${state.searchMatches} result(s) found so far — scanned ${loaded} page(s)`);
                 } else {
                     setStatus(`${loaded} page(s) loaded`);
                 }
 
-                injectLinkButtons(container);
-                await new Promise(r => setTimeout(r, 70));
+                await new Promise(r => setTimeout(r, 60));
             }
         } catch (e) {
             if (e.name === 'AbortError' || signal.aborted) {
@@ -834,21 +944,15 @@
                 stopReason = 'error';
             }
         } finally {
-            abortController = null;
-            isLoadingPages = false;
+            const wasStopping = isStoppingNow;
 
-            const stopBtn = document.getElementById('f-stop-loading');
-            const loadBtn = document.getElementById('f-loadall');
-            if (stopBtn) stopBtn.style.display = 'none';
-            if (loadBtn) loadBtn.disabled = false;
+            finishStopUI();
 
             const finalState = applyFilters(container);
-            hideNativePagination();
-            renderCustomPagination();
-            scheduleRefresh(container);
+            queueUIRefresh(container);
 
             if (!clearInProgress) {
-                if (stopReason === 'stopped') {
+                if (stopReason === 'stopped' || wasStopping) {
                     setStatus(getFilterValues().search
                         ? `${finalState.searchMatches} result(s) found`
                         : (loaded > 0 ? `Stopped — ${loaded} page(s) loaded` : 'Search stopped'));
@@ -861,13 +965,12 @@
                 }
             }
 
-            hideProgress();
-
             setTimeout(() => {
                 const t = document.getElementById('f-load-status')?.textContent || '';
                 if (
                     t === 'Error loading pages' ||
                     t === 'Search stopped' ||
+                    t === 'Stopping search...' ||
                     t.startsWith('Stopped —') ||
                     t.endsWith('page(s) loaded') ||
                     t.endsWith('result(s) found') ||
@@ -875,7 +978,7 @@
                 ) {
                     setStatus('');
                 }
-            }, 4000);
+            }, 2500);
         }
     }
 
@@ -1317,15 +1420,14 @@
 
         let debounceTimer;
         observer = new MutationObserver(() => {
-            if (observerPaused || clearInProgress) return;
+            if (observerPaused || clearInProgress || isStoppingNow) return;
+            if (Date.now() < suppressObserverUntil) return;
+
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 indexExistingItems(rootContainer);
-                hideNativePagination();
-                renderCustomPagination();
-                applyFilters(rootContainer);
-                injectLinkButtons(rootContainer);
-            }, 120);
+                queueUIRefresh(rootContainer);
+            }, 100);
         });
 
         observer.observe(resultsGrid, { childList: true, subtree: true });
@@ -1336,14 +1438,13 @@
         if (document.getElementById(`${SCRIPT_ID}-bar`)) return;
 
         rootContainer = container;
-        resultsGrid = findResultsGrid(container) || container;
+        resultsGrid = getActiveResultsGrid(container);
         baseListingUrl = getBaseListingUrl();
         nextPageToLoad = 2;
 
         injectStyles();
         captureNativePagination();
         hideNativePagination();
-
         indexExistingItems(container);
 
         const bar = createBar();
@@ -1359,14 +1460,22 @@
         bar.querySelector('#f-stop-loading').addEventListener('click', () => stopLoading());
 
         bar.querySelector('#f-loadall').addEventListener('click', async function () {
-            if (isLoadingPages || clearInProgress) return;
+            if (clearInProgress || isStoppingNow) return;
+            if (isLoadingPages && abortController) return;
 
             this.disabled = true;
-            document.getElementById('f-stop-loading').style.display = 'inline-block';
-            isLoadingPages = true;
 
+            const stopBtn = document.getElementById('f-stop-loading');
+            if (stopBtn) {
+                stopBtn.style.display = 'inline-block';
+                stopBtn.disabled = false;
+            }
+
+            isLoadingPages = true;
+            isStoppingNow = false;
             baseListingUrl = getBaseListingUrl();
             nextPageToLoad = 2;
+            resultsGrid = getActiveResultsGrid(container);
 
             applyFilters(container);
             await loadAllPages(container);
@@ -1375,7 +1484,7 @@
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (!isLoadingPages && !clearInProgress) {
+                if (!isLoadingPages && !clearInProgress && !isStoppingNow) {
                     bar.querySelector('#f-loadall').click();
                 }
             }
