@@ -2,7 +2,7 @@
 
 [![HDEncode-Search-Plus.png](https://i.postimg.cc/LhFKRbfz/HDEncode-Search-Plus.png)](https://postimg.cc/p5C1JksT)
 
-### Advanced HDEncode Userscript Bringing A Smarter Search, Advanced Search Result Filters, Improved Pagination Of Results and Specific Search Shortcuts.
+#### Advanced HDEncode Userscript Bringing A Smarter Search, Advanced Search Result Filters, Improved Pagination Of Results and Specific Search Shortcuts.
 
 ---
 
