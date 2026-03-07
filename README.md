@@ -4,13 +4,9 @@
 
 A heavily expanded and reworked HDEncode userscript focused on faster browsing, smarter search, safer controls, cleaner UI, and direct page-navigation shortcuts.
 
-Originally forked from: [mikeymuis/hdencode-filter-suite](https://github.com/mikeymuis/hdencode-filter-suite)
-
 ---
 
-## What’s new in this version:
-
-### Added / reworked features
+# Features
 
 - **Dedicated category page navigation**
   - Movies
@@ -71,9 +67,9 @@ Originally forked from: [mikeymuis/hdencode-filter-suite](https://github.com/mik
   - Inline access without opening each detail page
 
 ---
-## Advanced Filtering and Sorting
+### 🗃️ Advanced Filtering and Sorting
 
-### Row 1: Main filters and section navigation
+#### Row 1: Main filters and section navigation
 
 | Control | Description |
 |---|---|
@@ -88,24 +84,23 @@ Originally forked from: [mikeymuis/hdencode-filter-suite](https://github.com/mik
 | Top Downloads | Reload to the Top Downloads page |
 | 4K UHD | Reload to the 2160p quality page |
 
-### Row 2: Search, groups, loading and reset
+#### Row 2: Search, groups, loading and reset
 
 | Control | Description |
 |---|---|
 | All Release Groups | Filter by release group, populated dynamically from current visible results |
 | Search anything... | Free-text search across release info |
-| All Pages | Choose how many pages to scan |
 | Search | Start multi-page search/loading |
 | Stop Page Loading | Safely abort an active search |
 | Clear | Safely reset filters, stopping active searches first when needed |
 
 ---
 
-## Search behavior
+### 🏋️‍♂️ Advanced Search Redundancy
 
 The search system is designed to be more forgiving than plain text matching.
 
-It can handle:
+####It can handle:
 
 - dots instead of spaces
 - dashes instead of spaces
@@ -125,11 +120,7 @@ Examples it is better at handling:
 
 ---
 
-## Original base features
-
-The original project introduced the core HDEncode filtering workflow that this version was built on and later expanded.
-
-### Core filters
+### ⚡ Result Filters
 
 | Control | Description |
 |---|---|
@@ -140,7 +131,7 @@ The original project introduced the core HDEncode filtering workflow that this v
 | Min GB / Max GB | Filter by file size |
 | Release Group | Filter by release group |
 
-### Search and loading
+### 🔎 Search Control
 
 | Control | Description |
 |---|---|
@@ -149,7 +140,7 @@ The original project introduced the core HDEncode filtering workflow that this v
 | Search | Fetch more pages into the current view |
 | Clear | Reset filters and restore the list |
 
-### Quick links
+### 🔗 Quick Link Access
 
 - Inline `🔗 Links` button on each release
 - View host links without opening the release page
@@ -157,8 +148,19 @@ The original project introduced the core HDEncode filtering workflow that this v
 
 ---
 
+### 💪 Stability
 
-## Install
+Improvements include:
+- abort protection for active loading
+- delayed clear-after-stop handling
+- safer observer timing
+- fewer UI collisions during large result updates
+
+These changes are aimed at reducing freezes and slowdown during aggressive multi-page searching.
+
+---
+
+## ✅ Easy Installation
 
 ### One-click install
 
@@ -168,7 +170,9 @@ If you already have a userscript manager installed, click below:
 
 Most userscript managers will detect the raw `.user.js` file automatically and open an install prompt.
 
-### Supported userscript managers
+---
+
+### Supported Userscript Managers
 
 This script should work with most userscript extensions, including:
 
@@ -178,21 +182,21 @@ This script should work with most userscript extensions, including:
 - **FireMonkey**
 - Other Greasemonkey-compatible managers
 
-### Tampermonkey install
+### Tampermonkey Install
 1. Install the Tampermonkey extension.
 2. Open the install link above.
 3. Tampermonkey should detect the script automatically.
 4. Click **Install**.
 5. Open HDEncode and refresh the page if needed.
 
-### Violentmonkey install
+### Violentmonkey Install
 1. Install the Violentmonkey extension.
 2. Open the install link above.
 3. Violentmonkey should detect the script automatically.
 4. Confirm installation.
 5. Refresh HDEncode if needed.
 
-### Greasemonkey / other managers
+### Greasemonkey / Other Managers
 1. Install your preferred userscript manager.
 2. Open the raw install link above.
 3. If the manager detects `.user.js` automatically, approve the install.
@@ -201,7 +205,7 @@ This script should work with most userscript extensions, including:
 
 ---
 
-## Supported sites
+## Supported Sites
 
 Works on:
 
@@ -216,7 +220,7 @@ Supports homepage listings, tag pages, quality pages, search pages, and similar 
 
 ---
 
-## Direct page targets
+## Direct Page Targets
 
 The category selector loads these site pages directly:
 
@@ -245,20 +249,6 @@ Not treated as a saved local filter:
 - Category page selector, because it works as page navigation
 
 Nothing is uploaded or shared.
-
----
-
-## Notes on stability
-
-This version includes extra protection around long searches and reset actions.
-
-Improvements include:
-- abort protection for active loading
-- delayed clear-after-stop handling
-- safer observer timing
-- fewer UI collisions during large result updates
-
-These changes are aimed at reducing freezes and slowdown during aggressive multi-page searching.
 
 ---
 
