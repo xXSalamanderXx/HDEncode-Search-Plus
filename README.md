@@ -2,11 +2,11 @@
 
 [![HDEncode-Search-Plus.png](https://i.postimg.cc/LhFKRbfz/HDEncode-Search-Plus.png)](https://postimg.cc/p5C1JksT)
 
-#### Advanced HDEncode Userscript Bringing A Smarter Search, Advanced Search Result Filters, Improved Pagination Of Results and Specific Search Shortcuts.
+### 🔎 Advanced HDEncode Userscript Bringing a Smarter Search, Advanced Search Result Filters, Improved Pagination of Results and Specific Search Shortcuts.
 
 ---
 
-## 🔎🔥 Highlights: 
+## 🔥 Highlights: 
 
 ### 🗃️ Advanced Filtering and Sorting
 
@@ -200,6 +200,32 @@ Not treated as a saved local filter:
 - Category page selector, because it works as page navigation
 
 Nothing is uploaded or shared.
+
+---
+<p align="center">
+  <b>⭐ Star the repo • ☕ Support development • 🚀 Explore more projects</b>
+</p>
+
+## ⭐ Show Your Support
+
+If this repo has helped you, please consider giving it a **star** on GitHub!  
+It really helps show support, motivates future updates, and encourages continued development. 🚀
+
+Every ⭐ makes a difference and means a lot. Thanks for helping this project grow! 🙌
+
+## ☕ Support Development
+
+If you'd like to support my work even more, you can **buy me a coffee** here:  
+[☕ buymeacoffee.com/SinZZzz](https://buymeacoffee.com/SinZZzz)
+
+Your support helps keep development active and appreciated. 💙
+
+## 🔍 Check Out My Other Repos
+
+You might also like these projects:
+
+- [🦎 salamander-trackers](https://github.com/xXSalamanderXx/salamander-trackers)
+- [🔎 RLSBB-Search-Plus](https://github.com/xXSalamanderXx/RLSBB-Search-Plus)
 
 ---
 
