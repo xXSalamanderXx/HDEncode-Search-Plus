@@ -4,6 +4,9 @@
 
 ### 🔎 Advanced HDEncode Userscript Bringing a Smarter Search, Advanced Search Result Filters, Improved Pagination of Results and Specific Search Shortcuts.
 
+[![Release](https://img.shields.io/github/v/release/xXSalamanderXx/HDEncode-Search-Plus?style=for-the-badge)](https://github.com/xXSalamanderXx/HDEncode-Search-Plus/releases) [![Top language](https://img.shields.io/github/languages/top/xXSalamanderXx/HDEncode-Search-Plus?style=for-the-badge)](https://github.com/xXSalamanderXx/HDEncode-Search-Plus) [![License](https://img.shields.io/github/license/xXSalamanderXx/HDEncode-Search-Plus?style=for-the-badge)](./LICENSE)
+
+
 ---
 
 ## 🔥 Highlights: 
