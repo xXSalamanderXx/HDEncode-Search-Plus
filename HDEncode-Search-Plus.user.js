@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0.4
+// @version      1.0.5
 // @description  Filtering, live custom search, safer clear handling, custom pagination, category switching, quick links, and styled UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
