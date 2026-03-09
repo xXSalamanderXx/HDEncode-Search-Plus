@@ -389,14 +389,7 @@
     function updateRecommendedUseNotice() {
         const note = document.getElementById('f-category-note');
         if (!note) return;
-        note.style.display = (
-            !isHomeCategoryPage() &&
-            !isMoviesCategoryPage() &&
-            !isTvShowsCategoryPage() &&
-            !isTvPacksCategoryPage() &&
-            !isTopDownloadsCategoryPage() &&
-            !isUhd4kCategoryPage()
-        ) ? 'block' : 'none';
+        note.style.display = 'block';
     }
 
     function syncCategorySelectToLocation() {
