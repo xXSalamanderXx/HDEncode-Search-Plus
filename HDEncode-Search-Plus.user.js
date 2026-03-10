@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0.5
+// @version      1.0.6
 // @description  Filtering, live custom search, safer clear handling, custom pagination, category switching, quick links, and styled UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
@@ -149,7 +149,6 @@
                 gap: 8px;
                 align-items: center;
                 min-width: 0;
-                flex: 1 1 420px;
             }
 
             #${SCRIPT_ID}-bar .fs-toolbar-right {
@@ -159,7 +158,6 @@
                 align-items: center;
                 justify-content: flex-end;
                 min-width: 0;
-                flex: 1 1 280px;
             }
 
             #${SCRIPT_ID}-bar .fs-search-select {
@@ -175,11 +173,14 @@
 
             #${SCRIPT_ID}-bar .fs-section-line {
                 border-top: 1px solid #21262d;
-                margin: 10px 0;
+            }
+
+            #f-progress-bar {
+                width: 0%;
+                transition: width 0.3s ease-out;
             }
 
             #f-progress-bar.fs-active {
-                width: 100% !important;
                 background: linear-gradient(
                     90deg,
                     rgba(229, 9, 20, 0.08) 0%,
@@ -300,6 +301,7 @@
             #f-category-note {
                 display: none;
                 margin-top: 10px;
+                margin-bottom: 12px;
                 padding: 12px 14px;
                 border-radius: 14px;
                 background: transparent;
@@ -319,72 +321,26 @@
                     flex: 1 1 100%;
                     justify-content: flex-start;
                 }
-
-                #${SCRIPT_ID}-bar .fs-search-select,
-                #${SCRIPT_ID}-bar .fs-search-input {
-                    flex: 1 1 100%;
-                    min-width: 100%;
-                }
             }
         `;
         document.head.appendChild(style);
     }
 
-    function getCurrentOrigin() {
-        return window.location.origin;
-    }
+    function getCurrentOrigin() { return window.location.origin; }
+    function getHomeUrl() { return `${getCurrentOrigin()}/`; }
+    function getMoviesUrl() { return `${getCurrentOrigin()}/tag/movies/`; }
+    function getTvShowsUrl() { return `${getCurrentOrigin()}/tag/tv-shows/`; }
+    function getTvPacksUrl() { return `${getCurrentOrigin()}/tag/tv-packs/`; }
+    function getTopDownloadsUrl() { return `${getCurrentOrigin()}/top-downloads/`; }
+    function getUhd4kUrl() { return `${getCurrentOrigin()}/quality/2160p/`; }
+    function getCurrentPath() { return window.location.pathname.replace(/\/+$/, '/') || '/'; }
 
-    function getHomeUrl() {
-        return `${getCurrentOrigin()}/`;
-    }
-
-    function getMoviesUrl() {
-        return `${getCurrentOrigin()}/tag/movies/`;
-    }
-
-    function getTvShowsUrl() {
-        return `${getCurrentOrigin()}/tag/tv-shows/`;
-    }
-
-    function getTvPacksUrl() {
-        return `${getCurrentOrigin()}/tag/tv-packs/`;
-    }
-
-    function getTopDownloadsUrl() {
-        return `${getCurrentOrigin()}/top-downloads/`;
-    }
-
-    function getUhd4kUrl() {
-        return `${getCurrentOrigin()}/quality/2160p/`;
-    }
-
-    function getCurrentPath() {
-        return window.location.pathname.replace(/\/+$/, '/') || '/';
-    }
-
-    function isHomeCategoryPage() {
-        return getCurrentPath() === '/';
-    }
-
-    function isMoviesCategoryPage() {
-        return getCurrentPath().startsWith('/tag/movies/');
-    }
-
-    function isTvShowsCategoryPage() {
-        return getCurrentPath().startsWith('/tag/tv-shows/');
-    }
-
-    function isTvPacksCategoryPage() {
-        return getCurrentPath().startsWith('/tag/tv-packs/');
-    }
-
-    function isTopDownloadsCategoryPage() {
-        return getCurrentPath().startsWith('/top-downloads/');
-    }
-
-    function isUhd4kCategoryPage() {
-        return getCurrentPath().startsWith('/quality/2160p/');
-    }
+    function isHomeCategoryPage() { return getCurrentPath() === '/'; }
+    function isMoviesCategoryPage() { return getCurrentPath().startsWith('/tag/movies/'); }
+    function isTvShowsCategoryPage() { return getCurrentPath().startsWith('/tag/tv-shows/'); }
+    function isTvPacksCategoryPage() { return getCurrentPath().startsWith('/tag/tv-packs/'); }
+    function isTopDownloadsCategoryPage() { return getCurrentPath().startsWith('/top-downloads/'); }
+    function isUhd4kCategoryPage() { return getCurrentPath().startsWith('/quality/2160p/'); }
 
     function updateRecommendedUseNotice() {
         const note = document.getElementById('f-category-note');
@@ -396,21 +352,13 @@
         const select = document.getElementById('f-category');
         if (!select) return;
 
-        if (isHomeCategoryPage()) {
-            select.value = getHomeUrl();
-        } else if (isMoviesCategoryPage()) {
-            select.value = getMoviesUrl();
-        } else if (isTvShowsCategoryPage()) {
-            select.value = getTvShowsUrl();
-        } else if (isTvPacksCategoryPage()) {
-            select.value = getTvPacksUrl();
-        } else if (isTopDownloadsCategoryPage()) {
-            select.value = getTopDownloadsUrl();
-        } else if (isUhd4kCategoryPage()) {
-            select.value = getUhd4kUrl();
-        } else {
-            select.value = '';
-        }
+        if (isHomeCategoryPage()) select.value = getHomeUrl();
+        else if (isMoviesCategoryPage()) select.value = getMoviesUrl();
+        else if (isTvShowsCategoryPage()) select.value = getTvShowsUrl();
+        else if (isTvPacksCategoryPage()) select.value = getTvPacksUrl();
+        else if (isTopDownloadsCategoryPage()) select.value = getTopDownloadsUrl();
+        else if (isUhd4kCategoryPage()) select.value = getUhd4kUrl();
+        else select.value = '';
 
         updateRecommendedUseNotice();
     }
@@ -436,6 +384,46 @@
 
     function findNativePaginationElement(doc = document) {
         return doc.querySelector('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers');
+    }
+
+    function extractMaxPage(doc = document) {
+        const pager = findNativePaginationElement(doc);
+        let max = 1;
+
+        if (pager) {
+            // Check link hrefs and text contents
+            const links = pager.querySelectorAll('a');
+            for (const link of links) {
+                const matchHref = link.href.match(/\/page\/(\d+)\/?/i);
+                if (matchHref) {
+                    const val = parseInt(matchHref[1], 10);
+                    if (val > max) max = val;
+                }
+                const textVal = parseInt(link.textContent.trim(), 10);
+                if (!isNaN(textVal) && textVal > max) {
+                    max = textVal;
+                }
+            }
+
+            // Check standard spans (current active page or standalone texts)
+            const spans = pager.querySelectorAll('span');
+            for (const span of spans) {
+                const textVal = parseInt(span.textContent.trim(), 10);
+                if (!isNaN(textVal) && textVal > max) {
+                    max = textVal;
+                }
+            }
+        }
+
+        // Broad fallback scan for standard WP structure like "Page 1 of 500"
+        const fullText = doc.body ? doc.body.innerText : '';
+        const matchText = fullText.match(/(?:Page|Página)\s+\d+\s+(?:of|de)\s+(\d+)/i);
+        if (matchText) {
+            const val = parseInt(matchText[1], 10);
+            if (val > max) max = val;
+        }
+
+        return max;
     }
 
     function captureNativePagination() {
@@ -527,11 +515,7 @@
     }
 
     function normalizeSearchText(str) {
-        return (str || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim();
+        return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
     }
 
     function squeezeSearchText(str) {
@@ -678,9 +662,7 @@
             if (el.id === 'f-category') continue;
             data[el.id] = el.type === 'checkbox' ? el.checked : el.value;
         }
-        try {
-            localStorage.setItem('hdencodeFilters', JSON.stringify(data));
-        } catch (_) {}
+        try { localStorage.setItem('hdencodeFilters', JSON.stringify(data)); } catch (_) {}
     }
 
     function loadFilters() {
@@ -701,11 +683,23 @@
         if (el) el.textContent = text;
     }
 
+    function updateProgressBar(current, total) {
+        const bar = document.getElementById('f-progress-bar');
+        if (bar) {
+            const safeTotal = Math.max(1, total);
+            const pct = Math.min(100, Math.max(0, (current / safeTotal) * 100));
+            bar.style.width = `${pct}%`;
+        }
+    }
+
     function showProgress() {
         const wrap = document.getElementById('f-progress-wrap');
         const bar = document.getElementById('f-progress-bar');
         if (wrap) wrap.style.display = 'block';
-        if (bar) bar.classList.add('fs-active');
+        if (bar) {
+            bar.style.width = '0%';
+            bar.classList.add('fs-active');
+        }
     }
 
     function hideProgress(immediate = false) {
@@ -714,7 +708,10 @@
 
         const done = () => {
             if (wrap) wrap.style.display = 'none';
-            if (bar) bar.classList.remove('fs-active');
+            if (bar) {
+                bar.classList.remove('fs-active');
+                bar.style.width = '0%';
+            }
         };
 
         if (immediate) done();
@@ -827,9 +824,7 @@
         activeLoadToken++;
         searchRunId++;
 
-        try {
-            abortController.abort(reason);
-        } catch (_) {}
+        try { abortController.abort(reason); } catch (_) {}
 
         return true;
     }
@@ -914,18 +909,12 @@
             pauseObserver();
 
             for (const el of document.querySelectorAll(`#${SCRIPT_ID}-bar input, #${SCRIPT_ID}-bar select`)) {
-                if (el.id === 'f-category') {
-                    continue;
-                } else if (el.type === 'checkbox') {
-                    el.checked = false;
-                } else {
-                    el.value = '';
-                }
+                if (el.id === 'f-category') continue;
+                else if (el.type === 'checkbox') el.checked = false;
+                else el.value = '';
             }
 
-            try {
-                localStorage.removeItem('hdencodeFilters');
-            } catch (_) {}
+            try { localStorage.removeItem('hdencodeFilters'); } catch (_) {}
 
             syncCategorySelectToLocation();
 
@@ -967,12 +956,7 @@
 
         setStatus('Loading First Page....');
 
-        const res = await fetch(firstPageUrl, {
-            credentials: 'same-origin',
-            signal,
-            cache: 'no-store'
-        });
-
+        const res = await fetch(firstPageUrl, { credentials: 'same-origin', signal, cache: 'no-store' });
         if (!res.ok || signal.aborted || runId !== searchRunId) return false;
 
         const html = await res.text();
@@ -1025,7 +1009,10 @@
         const runId = ++searchRunId;
         const localToken = ++activeLoadToken;
 
+        let totalPages = extractMaxPage(document);
+
         showProgress();
+        updateProgressBar(0, totalPages);
         abortController = new AbortController();
         const { signal } = abortController;
 
@@ -1043,6 +1030,8 @@
             }
 
             loaded = 1;
+            totalPages = Math.max(totalPages, extractMaxPage(document));
+            updateProgressBar(loaded, totalPages);
 
             const firstState = applyFilters(container);
             if (getFilterValues().search) {
@@ -1057,14 +1046,10 @@
                     break;
                 }
 
-                setStatus(`Searching Page ${p}....`);
+                setStatus(`Searching Page ${p} out of ${Math.max(totalPages, p)}....`);
 
                 const url = buildPageUrl(p);
-                const res = await fetch(url, {
-                    credentials: 'same-origin',
-                    signal,
-                    cache: 'no-store'
-                });
+                const res = await fetch(url, { credentials: 'same-origin', signal, cache: 'no-store' });
 
                 if (!res.ok) {
                     stopReason = 'complete';
@@ -1078,6 +1063,10 @@
                 }
 
                 const doc = new DOMParser().parseFromString(html, 'text/html');
+                
+                // Update totalPages dynamically if the new page knows about more pages
+                totalPages = Math.max(totalPages, extractMaxPage(doc), p);
+
                 doc.querySelectorAll('#paginador, .wp-pagenavi, .pagination, .pagenavi, .nav-links, .page-numbers')
                     .forEach(el => el.remove());
 
@@ -1116,6 +1105,7 @@
 
                 resultsGrid = itemGrid;
                 loaded++;
+                updateProgressBar(loaded, totalPages);
 
                 const state = applyFilters(container);
                 injectLinkButtons(container);
@@ -1434,29 +1424,30 @@
         box-sizing: border-box;
     `;
 
-    function makeIconButton(id, label, borderColor, textColor) {
-        return `
-            <button id="${id}"
-                style="background:transparent; color:${textColor};
-                       border:1px solid ${borderColor};
-                       border-radius:6px; padding:5px 11px; cursor:pointer; font-size:13px;
-                       height:30px; box-sizing:border-box; transition:all 0.2s; white-space:nowrap;">
-                ${label}
-            </button>
-        `;
-    }
-
     function createBar() {
         const bar = document.createElement('div');
         bar.id = `${SCRIPT_ID}-bar`;
 
         bar.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
                 <strong class="fs-brand-text">${SCRIPT_NAME}</strong>
+                <select id="f-category" style="${INPUT_STYLE} flex: 1 1 270px; max-width: 100%;">
+                    <option value="">Select Category (page reloads)</option>
+                    <option value="${getHomeUrl()}">Home</option>
+                    <option value="${getMoviesUrl()}">Movies</option>
+                    <option value="${getTvShowsUrl()}">TV Shows</option>
+                    <option value="${getTvPacksUrl()}">TV Packs</option>
+                    <option value="${getTopDownloadsUrl()}">Top Downloads</option>
+                    <option value="${getUhd4kUrl()}">4K UHD</option>
+                </select>
             </div>
 
-            <div class="fs-toolbar-row">
-                <div class="fs-toolbar-left">
+            <div id="f-category-note">
+                <strong>Recommended Use:</strong> Search on the main site first, then use this script to narrow down your results.
+            </div>
+
+            <div class="fs-toolbar-row" style="margin-bottom: 8px;">
+                <div class="fs-toolbar-left" style="flex: 1 1 100%;">
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
                         <input type="checkbox" id="f-dv" style="accent-color:${ACCENT};">
                         <span>Dolby Vision</span>
@@ -1482,38 +1473,27 @@
 
                     <input type="number" id="f-maxsize" placeholder="Max GB" min="0"
                         style="${INPUT_STYLE} width:88px;">
-                </div>
-
-                <div class="fs-toolbar-right">
-                    <select id="f-category" style="${INPUT_STYLE} width:270px;">
-                        <option value="">Select Category (page reloads)</option>
-                        <option value="${getHomeUrl()}">Home</option>
-                        <option value="${getMoviesUrl()}">Movies</option>
-                        <option value="${getTvShowsUrl()}">TV Shows</option>
-                        <option value="${getTvPacksUrl()}">TV Packs</option>
-                        <option value="${getTopDownloadsUrl()}">Top Downloads</option>
-                        <option value="${getUhd4kUrl()}">4K UHD</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="f-category-note">
-                <strong>Recommended Use:</strong> Search on the main site first, then use this script to narrow down your results.
-            </div>
-
-            <div class="fs-section-line"></div>
-
-            <div class="fs-toolbar-row">
-                <div class="fs-toolbar-left">
+                        
                     <select id="f-group" class="fs-search-select" style="${INPUT_STYLE} width:165px;">
                         <option value="">All Release Groups</option>
                     </select>
+                </div>
+            </div>
 
+            <div class="fs-toolbar-row">
+                <div class="fs-toolbar-left" style="flex: 1 1 100%;">
                     <input type="text" id="f-search" class="fs-search-input" placeholder="Search Anything..."
                         style="${INPUT_STYLE} width:100%;">
                 </div>
-
-                <div class="fs-toolbar-right">
+            </div>
+            
+            <div style="font-size: 11px; color: #8b949e; margin-top: 8px; font-weight: 500; letter-spacing: 0.2px;">
+                Search Filters - Modify these to customize your results...
+            </div>
+            <div class="fs-section-line" style="margin: 6px 0 12px 0;"></div>
+            
+            <div class="fs-toolbar-row" style="justify-content: flex-end;">
+                <div class="fs-toolbar-right" style="flex: 1 1 100%;">
                     <button id="f-stop-loading"
                         style="display:none; background:transparent; color:#f59e0b;
                                border:1px solid rgba(245,158,11,0.35);
@@ -1569,7 +1549,7 @@
 
             <div id="f-progress-wrap" style="display:none; margin-top:6px;">
                 <div style="background:#21262d; border-radius:999px; height:6px; overflow:hidden;">
-                    <div id="f-progress-bar" style="height:100%; width:100%; border-radius:999px;"></div>
+                    <div id="f-progress-bar" style="height:100%; border-radius:999px;"></div>
                 </div>
             </div>
 
