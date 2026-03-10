@@ -1,6 +1,6 @@
 # HD-Encode Search+
 
-[![HD_Encode_Search_Plus.png](https://i.postimg.cc/HLcymsy7/HD_Encode_Search_Plus.png)](https://postimg.cc/SX4s74Vy)
+[![HDEncode_Search_Plus.png](https://i.postimg.cc/0QMNYY3b/HDEncode_Search_Plus.png)](https://postimg.cc/N9tYYHQc)
 
 ### 🔎 Advanced HDEncode Userscript Bringing a Smarter Search, Advanced Search Result Filters, Improved Pagination of Results and Specific Search Shortcuts.
 
