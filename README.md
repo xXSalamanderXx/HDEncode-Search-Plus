@@ -229,6 +229,7 @@ You might also like these projects:
 
 - [🦎 salamander-trackers](https://github.com/xXSalamanderXx/salamander-trackers)
 - [🔎 RLSBB-Search-Plus](https://github.com/xXSalamanderXx/RLSBB-Search-Plus)
+- [🦁 SlimBrave](https://github.com/xXSalamanderXx/SlimBrave)
 
 ---
 
