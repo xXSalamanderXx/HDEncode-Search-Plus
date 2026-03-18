@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0.9
+// @version      1.1.0
 // @description  Filtering, advanced sorting, live custom search, custom pagination, category switching, quick links, NFO panel, settings, presets, bulk copy, and sticky UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
@@ -147,7 +147,7 @@
             /* Remove default spin buttons for a cleaner look on numbers */
             #${SCRIPT_ID}-bar input[type=number]::-webkit-inner-spin-button, 
             #${SCRIPT_ID}-bar input[type=number]::-webkit-outer-spin-button { 
-                opacity: 0.5; /* Keeping them visible but less intrusive */
+                opacity: 0.5; 
             }
 
             #f-progress-bar { width: 0%; transition: width 0.3s ease-out; }
@@ -398,10 +398,29 @@
         const h5 = item.querySelector('h5 a');
         if (!h5) return '';
         let text = h5.textContent || h5.innerText;
-        text = text.replace(/\[.*?\]/g, ''); 
-        text = text.replace(/\(\d{4}\)/g, ''); 
+
+        // Strip bracketed tags, parenthesis years (temporarily) and sizes
+        text = text.replace(/\[.*?\]/g, ' '); 
+        text = text.replace(/\(\d{4}\)/g, (match) => match.replace(/[()]/g, '')); 
         text = text.replace(/[–-]\s*[\d.]+\s*(GB|MB).*$/i, ''); 
-        return text.trim();
+
+        // Cut off exactly at the scene release tags to remove the clutter
+        const sceneCutoff = /\b(1080p|720p|2160p|480p|4k|uhd|web-dl|webrip|bluray|bdrip|brrip|hdtv|x264|x265|hevc|ddp\d|aac|ac3|dts|remux)\b.*/i;
+        text = text.replace(sceneCutoff, '');
+
+        // Replace all dots and underscores with spaces
+        text = text.replace(/[._]/g, ' ');
+
+        // Clean up extra spaces and trailing hyphens
+        text = text.replace(/\s+/g, ' ').replace(/\s-\s*$/, '').trim();
+
+        // Apply clean Title Case formatting
+        text = text.split(' ').map(word => {
+            if (word.match(/^s\d{2}e\d{2}$/i)) return word.toUpperCase(); // Preserve formatting for S01E01
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
+
+        return text;
     }
 
     function hasDV(item) {
