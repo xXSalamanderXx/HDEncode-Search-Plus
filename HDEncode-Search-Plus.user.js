@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.0.8
+// @version      1.0.9
 // @description  Filtering, advanced sorting, live custom search, custom pagination, category switching, quick links, NFO panel, settings, presets, bulk copy, and sticky UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
@@ -143,6 +143,12 @@
             #${SCRIPT_ID}-bar .fs-search-select { flex: 0 1 180px; min-width: 145px; }
             #${SCRIPT_ID}-bar .fs-search-input { flex: 1 1 340px; min-width: 240px; max-width: 100%; }
             #${SCRIPT_ID}-bar .fs-section-line { border-top: 1px solid #21262d; }
+
+            /* Remove default spin buttons for a cleaner look on numbers */
+            #${SCRIPT_ID}-bar input[type=number]::-webkit-inner-spin-button, 
+            #${SCRIPT_ID}-bar input[type=number]::-webkit-outer-spin-button { 
+                opacity: 0.5; /* Keeping them visible but less intrusive */
+            }
 
             #f-progress-bar { width: 0%; transition: width 0.3s ease-out; }
             #f-progress-bar.fs-active {
@@ -368,14 +374,12 @@
             else positiveTokens.push(normalizeSearchText(t));
         }
 
-        // Must NOT contain negative tokens
         for (const neg of negativeTokens) {
             if (normalizedText.includes(neg)) return false;
         }
 
         if (!positiveTokens.length) return true;
 
-        // Must contain positive tokens
         const squeezedText = squeezeSearchText(text);
         const squeezedQuery = positiveTokens.map(squeezeSearchText).join('');
         if (squeezedQuery && squeezedText.includes(squeezedQuery)) return true;
@@ -394,9 +398,9 @@
         const h5 = item.querySelector('h5 a');
         if (!h5) return '';
         let text = h5.textContent || h5.innerText;
-        text = text.replace(/\[.*?\]/g, ''); // Strip resolutions like [2160p]
-        text = text.replace(/\(\d{4}\)/g, ''); // Strip (YYYY)
-        text = text.replace(/[–-]\s*[\d.]+\s*(GB|MB).*$/i, ''); // Strip size blocks
+        text = text.replace(/\[.*?\]/g, ''); 
+        text = text.replace(/\(\d{4}\)/g, ''); 
+        text = text.replace(/[–-]\s*[\d.]+\s*(GB|MB).*$/i, ''); 
         return text.trim();
     }
 
@@ -644,7 +648,6 @@
         // Apply Sorting
         if (f.sort && f.sort !== 'default') {
             const grid = getActiveResultsGrid(container);
-            // Sort items and append them back (this reorders them in the DOM)
             items.sort((a, b) => {
                 if (f.sort === 'rating-desc') return getRating(b) - getRating(a);
                 if (f.sort === 'size-desc') return (getSize(b) || 0) - (getSize(a) || 0);
@@ -970,7 +973,7 @@
             <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap: 10px;">
                     <strong class="fs-brand-text">${SCRIPT_NAME}</strong>
-                    <button id="fs-settings-btn" title="Filter Settings" style="background:transparent; border:none; color:#8b949e; cursor:pointer; font-size:16px; padding:0; transition:color 0.2s;">⚙️</button>
+                    <button id="fs-settings-btn" title="Persistence Settings" style="background:transparent; border:none; color:#8b949e; cursor:pointer; font-size:16px; padding:0; transition:color 0.2s;">⚙️</button>
                     <button id="fs-save-preset-btn" title="Save current filters as Preset" style="background:transparent; border:1px solid #30363d; border-radius: 6px; color:#8b949e; cursor:pointer; font-size:12px; padding:4px 8px; transition:all 0.2s;">💾 Save Preset</button>
                 </div>
                 <div style="display:flex; gap: 8px;">
@@ -988,7 +991,7 @@
             </div>
 
             <div id="fs-settings-panel" style="display:none; margin-bottom: 12px; padding: 12px; border-radius: 8px; background: #161b22; border: 1px solid #30363d; font-size: 12px; color: #8b949e;">
-                <div style="font-weight: 600; margin-bottom: 10px; color: #e6edf3;">Save Filters Between Visits:</div>
+                <div style="font-weight: 600; margin-bottom: 10px; color: #e6edf3;">💾 Persistence Settings: Choose which filters should be remembered next time you visit the site:</div>
                 <div style="display: flex; flex-wrap: wrap; gap: 14px;">
                     <label style="cursor:pointer;"><input type="checkbox" data-setting="f-dv"> Dolby Vision</label>
                     <label style="cursor:pointer;"><input type="checkbox" data-setting="f-hdr"> HDR</label>
@@ -1020,9 +1023,9 @@
                         <option value="720p">720p</option>
                     </select>
 
-                    <input type="number" id="f-rating" placeholder="Min Rating" step="0.1" min="0" max="10" style="${INPUT_STYLE} width:95px;">
-                    <input type="number" id="f-minsize" placeholder="Min GB" min="0" style="${INPUT_STYLE} width:75px;">
-                    <input type="number" id="f-maxsize" placeholder="Max GB" min="0" style="${INPUT_STYLE} width:75px;">
+                    <input type="number" id="f-rating" placeholder="Min Rating" step="0.1" min="0" max="10" style="${INPUT_STYLE} width:100px; padding-right: 4px;">
+                    <input type="number" id="f-minsize" placeholder="Min GB" min="0" style="${INPUT_STYLE} width:85px; padding-right: 4px;">
+                    <input type="number" id="f-maxsize" placeholder="Max GB" min="0" style="${INPUT_STYLE} width:85px; padding-right: 4px;">
                         
                     <select id="f-group" class="fs-search-select" style="${INPUT_STYLE} width:165px;">
                         <option value="">All Release Groups</option>
