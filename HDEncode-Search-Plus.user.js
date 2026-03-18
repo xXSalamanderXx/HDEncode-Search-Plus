@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HD-Encode Search+
 // @namespace    https://hdencode.org/
-// @version      1.1.0
+// @version      1.1.1
 // @description  Filtering, advanced sorting, live custom search, custom pagination, category switching, quick links, NFO panel, settings, presets, bulk copy, and sticky UI for HDEncode.org
 // @author       xXSalamanderXx
 // @homepage     https://github.com/xXSalamanderXx/HDEncode-Search-Plus/
@@ -144,7 +144,6 @@
             #${SCRIPT_ID}-bar .fs-search-input { flex: 1 1 340px; min-width: 240px; max-width: 100%; }
             #${SCRIPT_ID}-bar .fs-section-line { border-top: 1px solid #21262d; }
 
-            /* Remove default spin buttons for a cleaner look on numbers */
             #${SCRIPT_ID}-bar input[type=number]::-webkit-inner-spin-button, 
             #${SCRIPT_ID}-bar input[type=number]::-webkit-outer-spin-button { 
                 opacity: 0.5; 
@@ -399,24 +398,32 @@
         if (!h5) return '';
         let text = h5.textContent || h5.innerText;
 
-        // Strip bracketed tags, parenthesis years (temporarily) and sizes
+        // Strip bracketed tags
         text = text.replace(/\[.*?\]/g, ' '); 
-        text = text.replace(/\(\d{4}\)/g, (match) => match.replace(/[()]/g, '')); 
+
+        // Strip trailing sizes
         text = text.replace(/[–-]\s*[\d.]+\s*(GB|MB).*$/i, ''); 
 
-        // Cut off exactly at the scene release tags to remove the clutter
-        const sceneCutoff = /\b(1080p|720p|2160p|480p|4k|uhd|web-dl|webrip|bluray|bdrip|brrip|hdtv|x264|x265|hevc|ddp\d|aac|ac3|dts|remux)\b.*/i;
-        text = text.replace(sceneCutoff, '');
-
-        // Replace all dots and underscores with spaces
+        // Replace dots and underscores with spaces
         text = text.replace(/[._]/g, ' ');
+
+        // Strip parenthesis around 4-digit years to expose them as plain numbers
+        text = text.replace(/\((\d{4})\)/g, ' $1 '); 
+
+        // CORE FIX: Cut off everything AFTER the first valid year (1800-2500)
+        // Ensure the year is NOT the very first word in the string (solves the '1917' and '2012' movie title issue)
+        text = text.replace(/^(.+?)\b(1[8-9]\d{2}|2[0-4]\d{2}|2500)\b.*/, '$1$2');
+
+        // Fallback: If no year is present (e.g. TV episodes), cut off at scene tags
+        const sceneCutoff = /\b(1080p|720p|2160p|480p|4k|uhd|web-dl|webrip|bluray|bdrip|brrip|hdtv|x264|x265|hevc|ddp\d|aac|ac3|dts|remux|season|complete)\b.*/i;
+        text = text.replace(sceneCutoff, '');
 
         // Clean up extra spaces and trailing hyphens
         text = text.replace(/\s+/g, ' ').replace(/\s-\s*$/, '').trim();
 
         // Apply clean Title Case formatting
         text = text.split(' ').map(word => {
-            if (word.match(/^s\d{2}e\d{2}$/i)) return word.toUpperCase(); // Preserve formatting for S01E01
+            if (word.match(/^s\d{2}e\d{2}$/i)) return word.toUpperCase(); 
             return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
         }).join(' ');
 
